@@ -1,0 +1,69 @@
+{
+  "type": "eidolon:ritual",
+  "symbol": "eidolon:particle/sanguine_ritual",
+  "title": "eidolon.codex.page.sanguine_ritual.0.title",
+  "description": "eidolon.codex.page.sanguine_ritual.0",
+  "color": [
+    255, 255, 51, 85
+  ],
+
+  "requirements": {
+    "brazier": {
+      "type": "item",
+      "potion": "minecraft:harming"
+    },
+
+    "health": 40,
+
+    "items": [
+      {
+        "focused": false,
+        "type": "item",
+        "item": "minecraft:ghast_tear"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:crops/nether_wart"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:crops/nether_wart"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:gems/diamond"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:shadow_gem"
+      },
+      {
+        "focused": true,
+        "type": "item",
+        "item": "minecraft:iron_sword"
+      }
+    ]
+  },
+
+  "results": [
+    {
+      "type": "item",
+      "item": "eidolon:sapping_sword"
+    }
+  ]
+
+}

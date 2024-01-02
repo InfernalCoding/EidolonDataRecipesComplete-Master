@@ -1,0 +1,30 @@
+{
+  "type": "eidolon:worktable",
+  "core": [
+    "PP ",
+    "PR ",
+    " R "
+  ],
+  "extras": [
+    "U",
+    "  ",
+    "I"
+  ],
+  "key": {
+    "P": {
+      "tag": "forge:ingots/pewter"
+    },
+    "R": {
+      "tag": "forge:rods/wooden"
+    },
+    "U": {
+      "item": "eidolon:unholy_symbol"
+    },
+    "I": {
+      "item": "eidolon:pewter_inlay"
+    }
+  },
+  "result": {
+    "item": "eidolon:cleaving_axe"
+  }
+}

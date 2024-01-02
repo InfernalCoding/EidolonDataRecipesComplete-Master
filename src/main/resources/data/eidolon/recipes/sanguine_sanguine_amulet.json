@@ -1,0 +1,64 @@
+{
+  "type": "eidolon:ritual",
+  "symbol": "eidolon:particle/sanguine_ritual",
+  "title": "eidolon.codex.page.sanguine_ritual.1.title",
+  "description": "eidolon.codex.page.sanguine_ritual.1",
+  "color": [
+    255, 255, 51, 85
+  ],
+
+  "requirements": {
+    "brazier": {
+      "type": "item",
+      "potion": "minecraft:harming"
+    },
+
+    "health": 40,
+
+    "items": [
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:lesser_soul_gem"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:dusts/redstone"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:dusts/redstone"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:dusts/redstone"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:dusts/redstone"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:gems/diamond"
+      },
+      {
+        "focused": true,
+        "type": "item",
+        "item": "eidolon:basic_amulet"
+      }
+    ]
+  },
+
+  "results": [
+    {
+      "type": "item",
+      "item": "eidolon:sanguine_amulet"
+    }
+  ]
+
+}

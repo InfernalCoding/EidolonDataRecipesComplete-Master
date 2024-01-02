@@ -1,0 +1,45 @@
+{
+  "type": "eidolon:crucible",
+  "result": {
+    "item": "eidolon:shadow_gem"
+  },
+  "steps": [
+    {
+      "ingredients": [
+        {
+          "item": "minecraft:coal"
+        }
+      ]
+    },
+    {
+      "ingredients": [
+        {
+          "item": "minecraft:ghast_tear"
+        },
+        {
+          "item": "eidolon:death_essence"
+        }
+      ],
+      "stirs": 1
+    },
+    {
+      "ingredients": [
+        {
+          "item": "eidolon:soul_shard",
+          "count": 2
+        },
+        {
+          "item": "eidolon:death_essence"
+        }
+      ],
+      "stirs": 1
+    },
+    {
+      "ingredients": [
+        {
+          "tag": "forge:gems/diamond"
+        }
+      ]
+    }
+  ]
+}

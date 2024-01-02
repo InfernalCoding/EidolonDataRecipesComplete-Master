@@ -1,0 +1,30 @@
+{
+  "type": "eidolon:worktable",
+  "core": [
+    " S ",
+    "TTT",
+    " T "
+  ],
+  "extras": [
+    "U",
+    "  ",
+    "I"
+  ],
+  "key": {
+    "S": {
+      "item": "minecraft:smooth_stone"
+    },
+    "T": {
+      "tag": "forge:stone"
+    },
+    "I": {
+      "item": "eidolon:gold_inlay"
+    },
+    "U": {
+      "item": "eidolon:unholy_symbol"
+    }
+  },
+  "result": {
+    "item": "eidolon:unholy_effigy"
+  }
+}

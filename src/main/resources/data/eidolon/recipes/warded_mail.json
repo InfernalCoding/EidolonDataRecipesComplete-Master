@@ -1,0 +1,30 @@
+{
+  "type": "eidolon:worktable",
+  "core": [
+    " G ",
+    "ACA",
+    " A "
+  ],
+  "extras": [
+    "I",
+    "II",
+    "I"
+  ],
+  "key": {
+    "G": {
+      "item": "eidolon:lesser_soul_gem"
+    },
+    "I": {
+      "item": "eidolon:pewter_inlay"
+    },
+    "A": {
+      "item": "eidolon:enchanted_ash"
+    },
+    "C": {
+      "item": "minecraft:iron_chestplate"
+    }
+  },
+  "result": {
+    "item": "eidolon:warded_mail"
+  }
+}

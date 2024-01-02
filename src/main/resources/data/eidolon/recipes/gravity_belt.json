@@ -1,0 +1,36 @@
+{
+  "type": "eidolon:worktable",
+  "core": [
+    " E ",
+    "FBF",
+    " G "
+  ],
+  "extras": [
+    "C",
+    "II",
+    "C"
+  ],
+  "key": {
+    "E": {
+      "tag": "forge:ender_pearls"
+    },
+    "I": {
+      "item": "eidolon:pewter_inlay"
+    },
+    "B": {
+      "item": "eidolon:basic_belt"
+    },
+    "F": {
+      "item": "minecraft:feather"
+    },
+    "G": {
+      "item": "eidolon:lesser_soul_gem"
+    },
+    "C": {
+      "item": "eidolon:ender_calx"
+    }
+  },
+  "result": {
+    "item": "eidolon:gravity_belt"
+  }
+}
