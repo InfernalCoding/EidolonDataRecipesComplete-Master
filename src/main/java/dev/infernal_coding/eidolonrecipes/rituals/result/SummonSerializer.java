@@ -84,7 +84,7 @@ public class SummonSerializer implements IRitualResultSerializer {
 
     @Override
     public void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
-        if (result.getToCreate() instanceof EntityType) {
+        if (result.getToCreate() instanceof EntityUtil.Container) {
             createMob(result, world, pos);
         }
     }
