@@ -12,8 +12,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.MobEntity;
 import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.merchant.villager.AbstractVillagerEntity;
-import net.minecraft.entity.merchant.villager.VillagerEntity;
 import net.minecraft.entity.monster.ZombieVillagerEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
@@ -114,7 +112,7 @@ public class TransformSerializer implements IRitualResultSerializer {
     public void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
         if (result.getToCreate() instanceof Pair) {
 
-            Pair<?, ?> pairCheck = (Pair<?, ?>) result.getToCreate();
+             Pair<?, ?> pairCheck = (Pair<?, ?>) result.getToCreate();
 
             if (pairCheck.getSecond() instanceof EntityType<?>) {
                 if (pairCheck.getFirst() instanceof Class) {
@@ -151,15 +149,13 @@ public class TransformSerializer implements IRitualResultSerializer {
         }
 
         if (!world.isRemote) for (Entity entity : purifiable) {
-            if (entity instanceof ZombieVillagerEntity) {
+            if (entity instanceof ZombieVillagerEntity && pair.getSecond() == EntityType.VILLAGER) {
                 ((ZombieVillagerEntityMixin) entity).callCureZombie((ServerWorld) world);
                 for (int i = 1; i < numOfEntityTwo; i++) {
                     world.addEntity(entity);
                 }
+                return;
             } else {
-                if (entity instanceof PlayerEntity) {
-                    entity.onKillCommand();
-                } else entity.remove();
 
                 Entity newEntity = pair.getSecond().create(world);
                 newEntity.copyLocationAndAnglesFrom(entity);
@@ -169,6 +165,10 @@ public class TransformSerializer implements IRitualResultSerializer {
                             SpawnReason.MOB_SUMMONED, null, null);
                 }
                 world.addEntity(newEntity);
+
+                if (entity instanceof PlayerEntity) {
+                    entity.onKillCommand();
+                } else entity.remove();
             }
         }
     }
@@ -178,9 +178,14 @@ public class TransformSerializer implements IRitualResultSerializer {
         if (!purifiable.isEmpty() && !world.isRemote)
             world.playSound(null, pos, SoundEvents.ENTITY_ZOMBIE_VILLAGER_CURE, SoundCategory.PLAYERS, 1.0f, 1.0f);
         if (!world.isRemote) for (Entity entity : purifiable) {
-            if (entity instanceof ZombieVillagerEntity) {
+            if (entity instanceof ZombieVillagerEntity && pair.getSecond() == EntityType.VILLAGER) {
                 ((ZombieVillagerEntityMixin) entity).callCureZombie((ServerWorld) world);
+                for (int i = 1; i < numOfEntityTwo; i++) {
+                    world.addEntity(entity);
+                }
+                return;
             } else {
+                BlockPos pos1 = entity.getPosition();
                 if (entity instanceof PlayerEntity) {
                     entity.onKillCommand();
                 } else entity.remove();
@@ -193,6 +198,7 @@ public class TransformSerializer implements IRitualResultSerializer {
                 }
                 for (int i = 0; i < numOfEntityTwo; i++) {
                     world.addEntity(newEntity);
+                    newEntity.setPosition(pos1.getX(), pos1.getY(), pos1.getZ());
                 }
             }
         }
