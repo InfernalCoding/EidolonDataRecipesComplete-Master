@@ -5,7 +5,6 @@ import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.infernal_coding.eidolonrecipes.ModRoot;
-import dev.infernal_coding.eidolonrecipes.mixin.getters.TagPredicateMixin;
 import dev.infernal_coding.eidolonrecipes.spells.SpellRecipeWrapper;
 import dev.infernal_coding.eidolonrecipes.spells.requirement.ISpellRequirement;
 import dev.infernal_coding.eidolonrecipes.spells.requirement.impl.AltarRequirement;
@@ -15,26 +14,21 @@ import dev.infernal_coding.eidolonrecipes.util.SpellUtil;
 import elucent.eidolon.ClientEvents;
 import elucent.eidolon.Eidolon;
 import elucent.eidolon.Registry;
-import elucent.eidolon.codex.CodexGui;
 import elucent.eidolon.spell.Sign;
 import elucent.eidolon.spell.Signs;
-import elucent.eidolon.util.ColorUtil;
 import elucent.eidolon.util.RenderUtil;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.IRecipeLayout;
 import mezz.jei.api.gui.drawable.IDrawable;
-import mezz.jei.api.gui.ingredient.IGuiItemStackGroup;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.ingredients.IIngredients;
 import mezz.jei.api.recipe.category.IRecipeCategory;
-import mezz.jei.api.runtime.IRecipesGui;
 import net.minecraft.advancements.criterion.EntityTypePredicate;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.renderer.IRenderTypeBuffer;
-import net.minecraft.client.renderer.Rectangle2d;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.AtlasTexture;
 import net.minecraft.client.resources.I18n;
@@ -46,19 +40,14 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
-import org.apache.commons.lang3.concurrent.ConcurrentRuntimeException;
 import org.lwjgl.opengl.GL11;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static java.lang.Math.*;
 
 public class SpellCategory implements IRecipeCategory<SpellRecipeWrapper>  {
 
@@ -68,6 +57,8 @@ public class SpellCategory implements IRecipeCategory<SpellRecipeWrapper>  {
     static final ResourceLocation backgroundId = new ResourceLocation(ModRoot.ID, "textures/gui/spell_jei.png");
     final IDrawable background, icon, woodAltar, stoneAltar, goblet, strawEffigy, unholyEffigy;
     final IGuiHelper guiHelper;
+
+    static final Field getTag = ObfuscationReflectionHelper.findField(EntityTypePredicate.TagPredicate.class, "field_218001_b");
     static final Map<ResourceLocation, Sign> signs =
             ObfuscationReflectionHelper.getPrivateValue(Signs.class, null,
                     "signMap");
@@ -196,7 +187,12 @@ public class SpellCategory implements IRecipeCategory<SpellRecipeWrapper>  {
                                     + entityName.getNamespace() + "." + entityName.getPath());
                             sacrifices.add(text);
                         } else if (type instanceof EntityTypePredicate.TagPredicate) {
-                            ITag<EntityType<?>> tag = ((TagPredicateMixin) type).getTag();
+                            ITag<EntityType<?>> tag;
+                            try {
+                                tag = (ITag<EntityType<?>>) getTag.get(type);
+                            } catch (IllegalAccessException e) {
+                                throw new RuntimeException(e);
+                            }
                             StringTextComponent formattedTag = SpellUtil.getFormattedTag(tag);
                             sacrifices.add(formattedTag);
                         }
