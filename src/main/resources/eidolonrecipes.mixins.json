@@ -8,8 +8,7 @@
     "IngredientMixin",
     "StackUtilMixin",
     "WorktableRecipeMixin",
-    "getters.StaticSpellMixin",
-    "getters.TagPredicateMixin"
+    "getters.StaticSpellMixin"
   ],
   "minVersion": "0.8"
 }
