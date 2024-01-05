@@ -149,10 +149,12 @@ public class TransformSerializer implements IRitualResultSerializer {
         }
 
         if (!world.isRemote) for (Entity entity : purifiable) {
+            BlockPos pos1 = entity.getPosition();
             if (entity instanceof ZombieVillagerEntity && pair.getSecond() == EntityType.VILLAGER) {
                 ((ZombieVillagerEntityMixin) entity).callCureZombie((ServerWorld) world);
                 for (int i = 1; i < numOfEntityTwo; i++) {
                     world.addEntity(entity);
+                    entity.setPosition(pos1.getX(), pos1.getY(), pos1.getZ());
                 }
                 return;
             } else {
@@ -165,6 +167,7 @@ public class TransformSerializer implements IRitualResultSerializer {
                             SpawnReason.MOB_SUMMONED, null, null);
                 }
                 world.addEntity(newEntity);
+                newEntity.setPosition(pos1.getX(), pos1.getY(), pos1.getZ());
 
                 if (entity instanceof PlayerEntity) {
                     entity.onKillCommand();
@@ -178,14 +181,15 @@ public class TransformSerializer implements IRitualResultSerializer {
         if (!purifiable.isEmpty() && !world.isRemote)
             world.playSound(null, pos, SoundEvents.ENTITY_ZOMBIE_VILLAGER_CURE, SoundCategory.PLAYERS, 1.0f, 1.0f);
         if (!world.isRemote) for (Entity entity : purifiable) {
+            BlockPos pos1 = entity.getPosition();
             if (entity instanceof ZombieVillagerEntity && pair.getSecond() == EntityType.VILLAGER) {
                 ((ZombieVillagerEntityMixin) entity).callCureZombie((ServerWorld) world);
                 for (int i = 1; i < numOfEntityTwo; i++) {
                     world.addEntity(entity);
+                    entity.setPosition(pos1.getX(), pos1.getY(), pos1.getZ());
                 }
                 return;
             } else {
-                BlockPos pos1 = entity.getPosition();
                 if (entity instanceof PlayerEntity) {
                     entity.onKillCommand();
                 } else entity.remove();
