@@ -119,7 +119,7 @@ repositories {
 
 dependencies {
     minecraft 'net.minecraftforge:forge:1.16.5-36.2.34'
-    implementation fg.deobf('curse.maven:eidolon-429625:3157832')
+    implementation fg.deobf("curse.maven:eidolon-rebrewed-665468:4419213")
 
     runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:1.16.5-4.0.6.6")
     compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:1.16.5-4.0.6.6:api")
