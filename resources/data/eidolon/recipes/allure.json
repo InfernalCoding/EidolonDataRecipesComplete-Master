@@ -1,0 +1,53 @@
+{
+  "type": "eidolon:ritual",
+  "symbol": "eidolon:particle/allure_ritual",
+  "title": "eidolon.codex.chapter.allure_ritual",
+  "description": "eidolon.codex.page.allure_ritual",
+  "color": [
+    255, 255, 43, 75
+  ],
+
+  "requirements": {
+
+    "brazier": {
+      "type": "item",
+      "item": "minecraft:rose_bush"
+    },
+
+    "items": [
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:dyes/red"
+      },
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:dyes/red"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "minecraft:golden_apple"
+      }
+    ]
+  },
+
+  "results": [
+    {
+      "type": "allure",
+      "entity": "animal"
+    }
+  ]
+
+}
