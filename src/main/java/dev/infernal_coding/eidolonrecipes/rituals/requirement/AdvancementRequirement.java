@@ -5,18 +5,13 @@ import elucent.eidolon.ritual.IRequirement;
 import elucent.eidolon.ritual.RequirementInfo;
 import elucent.eidolon.ritual.Ritual;
 import net.minecraft.advancements.Advancement;
-import net.minecraft.advancements.AdvancementManager;
-import net.minecraft.advancements.PlayerAdvancements;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.ServerPlayerEntity;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.registries.ForgeRegistries;
-import org.lwjgl.system.CallbackI;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.PlayerAdvancements;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
-import java.util.Optional;
 
 public class AdvancementRequirement implements IRequirement {
     public ResourceLocation advancementName;
@@ -25,15 +20,15 @@ public class AdvancementRequirement implements IRequirement {
     }
 
     @Override
-    public RequirementInfo isMet(Ritual ritual, World world, BlockPos blockPos) {
+    public RequirementInfo isMet(Ritual ritual, Level world, BlockPos blockPos) {
         Advancement advancement = EventHandler.advancements.getAdvancement(advancementName);
-        List<ServerPlayerEntity> players = world.getEntitiesWithinAABB(ServerPlayerEntity.class, ritual.getSearchBounds(blockPos));
+        List<ServerPlayer> players = world.getEntitiesOfClass(ServerPlayer.class, ritual.getSearchBounds(blockPos));
 
         if (advancement == null) {
             return RequirementInfo.TRUE;
         }
 
-        for (ServerPlayerEntity player : players) {
+        for (ServerPlayer player : players) {
             if (hasAdvancement(advancement, world, player)) {
                 return RequirementInfo.TRUE;
             }
@@ -41,9 +36,9 @@ public class AdvancementRequirement implements IRequirement {
         return RequirementInfo.FALSE;
     }
 
-    public boolean hasAdvancement(Advancement advancement, World world, ServerPlayerEntity player) {
+    public boolean hasAdvancement(Advancement advancement, Level world, ServerPlayer player) {
         PlayerAdvancements advancements = EventHandler.playerList
                 .getPlayerAdvancements(player);
-        return advancements.getProgress(advancement).isDone();
+        return advancements.getOrStartProgress(advancement).isDone();
     }
 }

@@ -1,7 +1,7 @@
 package dev.infernal_coding.eidolonrecipes.data;
 
 import com.google.gson.JsonElement;
-import net.minecraft.network.PacketBuffer;
+import net.minecraft.network.FriendlyByteBuf;
 
 public interface ISerializer<D extends JsonElement, T> {
 
@@ -9,8 +9,8 @@ public interface ISerializer<D extends JsonElement, T> {
 
 	T deserialize(D json);
 
-	void write(PacketBuffer buf, T obj);
+	void write(FriendlyByteBuf buf, T obj);
 
-	T read(PacketBuffer buf);
+	T read(FriendlyByteBuf buf);
 
 }

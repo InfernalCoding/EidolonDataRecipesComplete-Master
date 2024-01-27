@@ -4,22 +4,20 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Pair;
 import dev.infernal_coding.eidolonrecipes.rituals.result.*;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
 import elucent.eidolon.ritual.IRequirement;
 import elucent.eidolon.ritual.ItemRequirement;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.tags.ITag;
-import net.minecraft.tags.TagCollectionManager;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.tags.ITag;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static dev.infernal_coding.eidolonrecipes.util.ItemUtil.*;
@@ -36,6 +34,7 @@ public class RitualManager {
         RESULTS.put(RepelSerializer.ID, new RepelSerializer());
         RESULTS.put(TransformSerializer.ID, new TransformSerializer());
         RESULTS.put(AbsorbSerializer.ID, new AbsorbSerializer());
+        RESULTS.put(AbsorptionSerializer.ID, new AbsorptionSerializer());
         RESULTS.put(TransmuteSerializer.ID, new TransmuteSerializer());
         RESULTS.put(DeceitSerializer.ID, new DeceitSerializer());
         RESULTS.put(TimeSerializer.ID, new TimeSerializer());
@@ -64,7 +63,7 @@ public class RitualManager {
                 item = enchantedBook;
             }
         }
-        ITag<Item> itemTag = getItemTagFromJson(json.get("tag"));
+        TagKey<Item> itemTag = getItemTagFromJson(json.get("tag"));
 
         if (!item.isEmpty()) {
            return new ItemRequirement(item);
@@ -98,7 +97,7 @@ public class RitualManager {
                 }
             }
 
-            ITag<Item> itemTag = getItemTagFromJson(json.get("tag"));
+            TagKey<Item> itemTag = getItemTagFromJson(json.get("tag"));
 
             if (!item.isEmpty() && isNecroticFocused) {
                 return item;
@@ -108,16 +107,14 @@ public class RitualManager {
          return null;
     }
 
-    static Pair<ItemRequirement, Object> getItemRequirementPair(PacketBuffer buffer) {
+    static Pair<ItemRequirement, Object> getItemRequirementPair(FriendlyByteBuf buffer) {
         boolean isNecroFocused = buffer.readBoolean();
-        String type = buffer.readString();
-        ITag<Item> itemTag;
+        String type = buffer.readUtf();
+        TagKey<Item> itemTag;
         ItemStack itemStack;
 
         if (type.equals("tag")) {
-            itemTag = TagCollectionManager.getManager()
-                    .getItemTags()
-                    .get(buffer.readResourceLocation());
+            itemTag = TagKey.create(Registry.ITEM_REGISTRY, buffer.readResourceLocation());
 
             if (itemTag != null && !isNecroFocused) {
                 return new Pair<>(new ItemRequirement(itemTag), null);
@@ -125,7 +122,7 @@ public class RitualManager {
                 return new Pair<>(new ItemRequirement(itemTag), itemTag);
             }
         } else {
-              itemStack = buffer.readItemStack();
+              itemStack = buffer.readItem();
 
               if (!isNecroFocused && !itemStack.isEmpty()) {
                   return new Pair<>(new ItemRequirement(itemStack), null);
@@ -171,7 +168,7 @@ public class RitualManager {
         return new Pair<>(color, isColorPreset);
     }
 
-    static Pair<Integer, Boolean> getColor(PacketBuffer buffer) {
+    static Pair<Integer, Boolean> getColor(FriendlyByteBuf buffer) {
         int length = buffer.readVarInt();
         int color = 0;
         boolean isColorPreset = false;
@@ -223,15 +220,13 @@ public class RitualManager {
         return null;
     }
 
-    static Object getBrazierRequirement(PacketBuffer buffer) {
-        String brazierItemType = buffer.readString();
+    static Object getBrazierRequirement(FriendlyByteBuf buffer) {
+        String brazierItemType = buffer.readUtf();
 
         if (brazierItemType.equals("tag")) {
-            return TagCollectionManager.getManager()
-                    .getItemTags()
-                    .get(buffer.readResourceLocation());
+            return TagKey.create(Registry.ITEM_REGISTRY, buffer.readResourceLocation());
         } else if (brazierItemType.equals("item")) {
-            return buffer.readItemStack();
+            return buffer.readItem();
         }
         return null;
     }
@@ -245,7 +240,7 @@ public class RitualManager {
 
                 if (itemRequirement.getMatch() instanceof ItemStack && necroRequirement.getClass() == itemRequirement.getMatch().getClass()) {
                     ItemStack itemStack = (ItemStack) necroRequirement;
-                    if (ItemStack.areItemStacksEqual(itemStack,  (ItemStack) itemRequirement.getMatch())) {
+                    if (ItemStack.matches(itemStack,  (ItemStack) itemRequirement.getMatch())) {
                         usesNecro.set(true);
                     }
                 } else if (necroRequirement instanceof ITag && necroRequirement.getClass() == itemRequirement.getMatch().getClass()) {

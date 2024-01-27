@@ -5,18 +5,19 @@ import dev.infernal_coding.eidolonrecipes.rituals.IRitualResultSerializer;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualManager;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualRecipeWrapper;
 import dev.infernal_coding.eidolonrecipes.util.EntityUtil;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
 import elucent.eidolon.network.CrystallizeEffectPacket;
 import elucent.eidolon.network.Networking;
+import elucent.eidolon.ritual.Ritual;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -48,7 +49,7 @@ public class SummonSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public RitualManager.ResultColorPair getColorAndResult(PacketBuffer buffer, int color, boolean isColorPreset, String type) {
+    public RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type) {
         ResourceLocation entityName = buffer.readResourceLocation();
         EntityType<?> entityType;
         int count = 1;
@@ -57,7 +58,7 @@ public class SummonSerializer implements IRitualResultSerializer {
             count = buffer.readInt();
         } catch (Exception ignored) {}
 
-        entityType = ForgeRegistries.ENTITIES.getValue(entityName);
+        entityType = ForgeRegistries.ENTITY_TYPES.getValue(entityName);
 
         if (entityType != null) {
             EntityUtil.Container container = new EntityUtil.Container(entityType, count);
@@ -73,24 +74,24 @@ public class SummonSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public void writeResult(RitualRecipeWrapper.Result result, PacketBuffer buffer) {
-        buffer.writeString(result.getVariant());
+    public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
+        buffer.writeUtf(result.getVariant());
 
         if (result.getToCreate() instanceof EntityType<?>) {
             EntityType<?> entityType = (EntityType<?>) result.getToCreate();
-            buffer.writeResourceLocation(Objects.requireNonNull(entityType.getRegistryName()));
+            buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(entityType)));
         }
     }
 
     @Override
-    public void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public void startRitual(Ritual ritual, RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         if (result.getToCreate() instanceof EntityUtil.Container) {
             createMob(result, world, pos);
         }
     }
 
     @Override
-    public boolean onRitualTick(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public boolean onRitualTick(RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         return false;
     }
 
@@ -106,16 +107,16 @@ public class SummonSerializer implements IRitualResultSerializer {
         return egg.map(ItemStack::new).orElse(ItemStack.EMPTY);
     }
 
-    private void createMob(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    private void createMob(RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         EntityUtil.Container container = (EntityUtil.Container) result.getToCreate();
         EntityType<?> entityToMake = container.getEntityType();
-        if (!world.isRemote) {
+        if (!world.isClientSide) {
             Networking.sendToTracking(world, pos, new CrystallizeEffectPacket(pos));
 
             for (int i = 0; i < result.getCount(); i++) {
                 Entity e = entityToMake.create(world);
-                e.setPosition((double) pos.getX() + 0.5, (double) pos.getY() + 1.5, (double) pos.getZ() + 0.5);
-                world.addEntity(e);
+                e.setPos((double) pos.getX() + 0.5, (double) pos.getY() + 1.5, (double) pos.getZ() + 0.5);
+                world.addFreshEntity(e);
             }
         }
     }

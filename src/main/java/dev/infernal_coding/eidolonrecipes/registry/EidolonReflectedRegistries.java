@@ -3,13 +3,10 @@ package dev.infernal_coding.eidolonrecipes.registry;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.Lists;
 import com.ibm.icu.impl.Pair;
-import dev.infernal_coding.eidolonrecipes.recipes.CrucibleRecipeWrapper;
-import dev.infernal_coding.eidolonrecipes.recipes.WorktableRecipeWrapper;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualManager;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualRecipeWrapper;
 import dev.infernal_coding.eidolonrecipes.spells.SpellRecipeWrapper;
 import dev.infernal_coding.eidolonrecipes.util.ChantPage2;
-import dev.infernal_coding.eidolonrecipes.util.TitlePage2;
 import dev.infernal_coding.eidolonrecipes.util.TitledRitualPage2;
 import elucent.eidolon.Eidolon;
 import elucent.eidolon.Registry;
@@ -19,6 +16,7 @@ import elucent.eidolon.recipe.CrucibleRecipe;
 import elucent.eidolon.recipe.CrucibleRegistry;
 import elucent.eidolon.recipe.WorktableRecipe;
 import elucent.eidolon.recipe.WorktableRegistry;
+import elucent.eidolon.registries.Entities;
 import elucent.eidolon.ritual.Ritual;
 import elucent.eidolon.ritual.RitualRegistry;
 import elucent.eidolon.spell.Sign;
@@ -26,14 +24,13 @@ import elucent.eidolon.spell.Signs;
 import elucent.eidolon.spell.Spell;
 import elucent.eidolon.spell.Spells;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.client.resources.I18n;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.item.crafting.*;
-import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.Container;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.*;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 
 import java.util.*;
 import java.util.function.BiFunction;
@@ -78,29 +75,22 @@ public class EidolonReflectedRegistries {
 
     public static final Comparator<RitualRecipeWrapper> backwardsComparator = (r1, r2) -> {
 
-        String title1 = I18n.format(r1.title);
-        String title2 = I18n.format(r2.title);
+        String title1 = I18n.get(r1.title);
+        String title2 = I18n.get(r2.title);
         return title1.compareTo(title2) * -1;
     };
 
 
     public static void onDataPackReloaded(RecipeManager manager) {
-        Map<ResourceLocation, CrucibleRecipeWrapper> crucibleRecipes = getRecipes(manager, RecipeTypes.CRUCIBLE);
-        clearEntriesIf(CRUCIBLE_RECIPES, (id, recipe) -> manager.getKeys().anyMatch(id::equals));
-        CRUCIBLE_RECIPES.putAll(crucibleRecipes);
 
-        Map<ResourceLocation, WorktableRecipeWrapper> worktableRecipes = getRecipes(manager, RecipeTypes.WORKTABLE);
-        clearEntriesIf(WORKTABLE_RECIPES, (id, recipe) -> manager.getKeys().anyMatch(id::equals));
-        WORKTABLE_RECIPES.putAll(worktableRecipes);
-
-        Map<ResourceLocation, SpellRecipeWrapper> spellRecipes = getRecipes(manager, RecipeTypes.SPELL);
-        clearEntriesIf(SPELL_MAP, (id, recipe) -> manager.getKeys().anyMatch(id::equals));
+        Map<ResourceLocation, SpellRecipeWrapper> spellRecipes = getRecipes(manager, RecipeTypes.SPELL.get());
+        clearEntriesIf(SPELL_MAP, (id, recipe) -> manager.getRecipeIds().anyMatch(id::equals));
         SPELL_MAP.putAll(spellRecipes);
         SPELLS.clear();
         SPELLS.addAll(SPELL_MAP.values());
 
-        Map<ResourceLocation, RitualRecipeWrapper> rituals = getRecipes(manager, RecipeTypes.RITUAL);
-        clearEntriesIf(RITUAL_MAP, (id, recipe) -> manager.getKeys().anyMatch(id::equals));
+        Map<ResourceLocation, RitualRecipeWrapper> rituals = getRecipes(manager, RecipeTypes.RITUAL.get());
+        clearEntriesIf(RITUAL_MAP, (id, recipe) -> manager.getRecipeIds().anyMatch(id::equals));
         rituals.values().forEach(ritualRecipeWrapper -> {
             if (ritualRecipeWrapper.getBrazierItemRequirement() != null &&
                     ritualRecipeWrapper.getBrazierItemRequirement() != ItemStack.EMPTY) {
@@ -120,8 +110,8 @@ public class EidolonReflectedRegistries {
         reloadCodexChapters(manager);
     }
 
-    public static <C extends IInventory, T extends IRecipe<C>> Map<ResourceLocation, T> getRecipes(RecipeManager manager, IRecipeType<T> type) {
-        return manager.getRecipesForType(type).stream().collect(Collectors.toMap(IRecipe::getId, Function.identity()));
+    public static <C extends Container, T extends Recipe<C>> Map<ResourceLocation, T> getRecipes(RecipeManager manager, RecipeType<T> type) {
+        return manager.getAllRecipesFor(type).stream().collect(Collectors.toMap(Recipe::getId, Function.identity()));
     }
 
     private static <T> void clearEntriesIf(Map<ResourceLocation, T> map, BiFunction<ResourceLocation, T, Boolean> shouldClear) {
@@ -150,54 +140,57 @@ public class EidolonReflectedRegistries {
         MONSTERS = new Chapter(
                 "eidolon.codex.chapter.monsters",
                 new TitlePage("eidolon.codex.page.monsters.zombie_brute"),
-                new EntityPage(Registry.ZOMBIE_BRUTE.get()),
+                new EntityPage(Entities.ZOMBIE_BRUTE.get()),
                 new TitlePage("eidolon.codex.page.monsters.wraith"),
-                new EntityPage(Registry.WRAITH.get()),
+                new EntityPage(Entities.WRAITH.get()),
                 new TitlePage("eidolon.codex.page.monsters.chilled")
         );
 
         Map<ResourceLocation, BlastingRecipe> blastingRecipes =
-                getRecipes(manager, IRecipeType.BLASTING);
+                getRecipes(manager, RecipeType.BLASTING);
 
-        Map<ResourceLocation, ICraftingRecipe> craftingRecipes =
-                getRecipes(manager, IRecipeType.CRAFTING);
+        Map<ResourceLocation, CraftingRecipe> craftingRecipes =
+                getRecipes(manager, RecipeType.CRAFTING);
 
-        Map<ResourceLocation, WorktableRecipeWrapper> worktableRecipes =
-                getRecipes(manager, RecipeTypes.WORKTABLE);
+        Map<ResourceLocation, WorktableRecipe> worktableRecipes =
+                getRecipes(manager, WorktableRecipe.Type.INSTANCE);
 
-        Map<ResourceLocation, CrucibleRecipeWrapper> crucibleRecipes =
-                getRecipes(manager, RecipeTypes.CRUCIBLE);
+        Map<ResourceLocation, CrucibleRecipe> crucibleRecipes =
+                getRecipes(manager, CrucibleRecipe.Type.INSTANCE);
 
         Map<ResourceLocation, SpellRecipeWrapper> spellRecipes =
-                getRecipes(manager, RecipeTypes.SPELL);
+                getRecipes(manager, RecipeTypes.SPELL.get());
 
         Map<ResourceLocation, RitualRecipeWrapper> ritualRecipes =
-                getRecipes(manager, RecipeTypes.RITUAL);
+                getRecipes(manager, RecipeTypes.RITUAL.get());
 
-        Optional<ICraftingRecipe> leadBlockRecipe =
+        Optional<CraftingRecipe> leadBlockRecipe =
                 Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID,
                         "lead_block")));
 
-        Optional<ICraftingRecipe> leadIngotRecipe =
+        Optional<CraftingRecipe> leadIngotRecipe =
                 Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID,
                         "lead_ingot")));
 
         Optional<BlastingRecipe> blastingRecipe = Optional.ofNullable(blastingRecipes.get(new ResourceLocation(Eidolon.MODID, "blast_lead_ore")));
 
         ItemStack blastInput = blastingRecipe
-                .map(EidolonReflectedRegistries::getCraftingInputs)
-                .map(itemStacks -> itemStacks[0]).orElse(ItemStack.EMPTY);
+                .map(AbstractCookingRecipe::getIngredients)
+                .map(ingredients -> ingredients.stream().map(ingredient -> ingredient.getItems()).collect(Collectors.toList()))
+                .map(a -> a.get(0))
+                .map(stacks -> stacks[0])
+                .orElse(ItemStack.EMPTY);
 
-        ItemStack blastOutput = blastingRecipe.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack blastOutput = blastingRecipe.map(Recipe::getResultItem).orElse(ItemStack.EMPTY);
 
 
         ItemStack[] leadBlockIngredients = leadBlockRecipe.
-                map(EidolonReflectedRegistries::getCraftingInputs).orElseGet(() -> new ItemStack[0]);
-        ItemStack leadBlockOutput = leadBlockRecipe.map(ICraftingRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+                map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
+        ItemStack leadBlockOutput = leadBlockRecipe.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         ItemStack[] leadIngotIngredients = leadIngotRecipe.
                 map(EidolonReflectedRegistries::getCraftingInputs).orElseGet(() -> new ItemStack[0]);
-        ItemStack leadIngotOutput = leadIngotRecipe.map(ICraftingRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack leadIngotOutput = leadIngotRecipe.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
 
         ORES = new Chapter(
@@ -207,9 +200,9 @@ public class EidolonReflectedRegistries {
                 new CraftingPage(leadBlockOutput, leadBlockIngredients),
                 new CraftingPage(leadIngotOutput, leadIngotIngredients));
 
-        Optional<ICraftingRecipe> pewterRecipe = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "pewter_blend")));
+        Optional<CraftingRecipe> pewterRecipe = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "pewter_blend")));
         ItemStack[] pewterInputs = pewterRecipe.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack pewterOutput = pewterRecipe.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack pewterOutput = pewterRecipe.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         Optional<BlastingRecipe> blastPewterIngot = Optional.ofNullable(blastingRecipes.get(new ResourceLocation(Eidolon.MODID, "blast_pewter_blend")));
 
@@ -217,21 +210,21 @@ public class EidolonReflectedRegistries {
                 .map(EidolonReflectedRegistries::getCraftingInputs)
                 .map(itemStacks -> itemStacks[0]).orElse(ItemStack.EMPTY);
 
-        ItemStack blastPewterIngotOutput = blastPewterIngot.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack blastPewterIngotOutput = blastPewterIngot.map(AbstractCookingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> pewterBlockRecipe =
+        Optional<CraftingRecipe> pewterBlockRecipe =
                 Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID,
                         "pewter_block")));
         ItemStack[] pewterBlockInputs = pewterBlockRecipe.
                 map(EidolonReflectedRegistries::getCraftingInputs).orElseGet(() -> new ItemStack[0]);
-        ItemStack pewterBlockOutput = pewterBlockRecipe.map(ICraftingRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack pewterBlockOutput = pewterBlockRecipe.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> pewterIngot =
+        Optional<CraftingRecipe> pewterIngot =
                 Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID,
                         "lead_ingot")));
         ItemStack[] pewterIngotInputs = pewterIngot.
                 map(EidolonReflectedRegistries::getCraftingInputs).orElseGet(() -> new ItemStack[0]);
-        ItemStack pewterIngotOutput = pewterBlockRecipe.map(ICraftingRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack pewterIngotOutput = pewterBlockRecipe.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         PEWTER = new Chapter(
                 "eidolon.codex.chapter.pewter",
@@ -248,7 +241,7 @@ public class EidolonReflectedRegistries {
                 .map(EidolonReflectedRegistries::getCraftingInputs)
                 .map(itemStacks -> itemStacks[0]).orElse(ItemStack.EMPTY);
 
-        ItemStack enchantedAshOutput = enchantedAsh.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack enchantedAshOutput = enchantedAsh.map(AbstractCookingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         ENCHANTED_ASH = new Chapter(
                 "eidolon.codex.chapter.enchanted_ash",
@@ -272,9 +265,9 @@ public class EidolonReflectedRegistries {
                 NATURE_INDEX
         ));
 
-        Optional<ICraftingRecipe> brazier = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "brazier")));
+        Optional<CraftingRecipe> brazier = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "brazier")));
         ItemStack[] brazerInputs = brazier.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack brazierOutput = brazier.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack brazierOutput = brazier.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         BRAZIER = new Chapter(
                 "eidolon.codex.chapter.brazier",
@@ -282,13 +275,13 @@ public class EidolonReflectedRegistries {
                 new TextPage("eidolon.codex.page.brazier.1"),
                 new CraftingPage(brazierOutput, brazerInputs));
 
-        Optional<ICraftingRecipe> stoneHand = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "stone_hand")));
+        Optional<CraftingRecipe> stoneHand = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "stone_hand")));
         ItemStack[] stoneHandInputs = stoneHand.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack stoneHandOutput = stoneHand.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack stoneHandOutput = stoneHand.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> necroFocus = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "necrotic_focus")));
+        Optional<CraftingRecipe> necroFocus = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "necrotic_focus")));
         ItemStack[] focusInputs = necroFocus.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack focusOutput = necroFocus.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack focusOutput = necroFocus.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         ITEM_PROVIDERS = new Chapter(
                 "eidolon.codex.chapter.item_providers",
@@ -334,11 +327,11 @@ public class EidolonReflectedRegistries {
                 RITUALS_INDEX
         ));
 
-        Optional<ICraftingRecipe> woodenStand = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "wooden_brewing_stand")));
+        Optional<CraftingRecipe> woodenStand = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "wooden_brewing_stand")));
         ItemStack[] standInputs = woodenStand.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack standOutput = woodenStand.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack standOutput = woodenStand.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<CrucibleRecipeWrapper> fungusSprouts = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "fungus_sprouts")));
+        Optional<CrucibleRecipe> fungusSprouts = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "fungus_sprouts")));
         CruciblePage.CrucibleStep[] fungiInputs = fungusSprouts.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack fungiOutput = fungusSprouts.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
         crucibleRecipes.remove(new ResourceLocation(Eidolon.MODID, "fungus_sprouts"));
@@ -353,15 +346,15 @@ public class EidolonReflectedRegistries {
 
         Optional<BlastingRecipe> tallow = Optional.ofNullable(blastingRecipes.get(new ResourceLocation(Eidolon.MODID, "tallow")));
         ItemStack tallowInput = tallow.map(EidolonReflectedRegistries::getCraftingInputs).map(itemStacks -> itemStacks[0]).orElse(ItemStack.EMPTY);
-        ItemStack tallowOutput = tallow.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack tallowOutput = tallow.map(AbstractCookingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> candle = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "candle")));
+        Optional<CraftingRecipe> candle = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "candle")));
         ItemStack[] candleInputs = candle.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack candleOutput = candle.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack candleOutput = candle.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> candlestick = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "candlestick")));
+        Optional<CraftingRecipe> candlestick = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "candlestick")));
         ItemStack[] stickInput = candlestick.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack stickOutput = candlestick.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack stickOutput = candlestick.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         TALLOW = new Chapter(
                 "eidolon.codex.chapter.tallow",
@@ -372,9 +365,9 @@ public class EidolonReflectedRegistries {
                 new CraftingPage(stickOutput, stickInput)
         );
 
-        Optional<ICraftingRecipe> crucible = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "crucible")));
+        Optional<CraftingRecipe> crucible = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "crucible")));
         ItemStack[] crucibleInput = crucible.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack crucibleOutput = crucible.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack crucibleOutput = crucible.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         CRUCIBLE = new Chapter(
                 "eidolon.codex.chapter.crucible",
@@ -383,18 +376,18 @@ public class EidolonReflectedRegistries {
                 new CraftingPage(crucibleOutput, crucibleInput)
         );
 
-        Optional<CrucibleRecipeWrapper> arcaneGold = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "arcane_gold")));
+        Optional<CrucibleRecipe> arcaneGold = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "arcane_gold")));
         CruciblePage.CrucibleStep[] goldSteps = arcaneGold.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack goldOutput = arcaneGold.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
         crucibleRecipes.remove(new ResourceLocation(Eidolon.MODID, "arcane_gold"));
 
-        Optional<ICraftingRecipe> arcaneGoldBlock = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "arcane_gold_block")));
+        Optional<CraftingRecipe> arcaneGoldBlock = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "arcane_gold_block")));
         ItemStack[] blockInput = arcaneGoldBlock.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack blockOutput = arcaneGoldBlock.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack blockOutput = arcaneGoldBlock.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> arcaneGoldIngot = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "arcane_gold_ingot")));
+        Optional<CraftingRecipe> arcaneGoldIngot = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "arcane_gold_ingot")));
         ItemStack[] ingotInput = arcaneGoldIngot.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack ingotOutput = arcaneGoldIngot.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack ingotOutput = arcaneGoldIngot.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
 
         ARCANE_GOLD = new Chapter(
@@ -408,40 +401,40 @@ public class EidolonReflectedRegistries {
         List<Page> reagents = new ArrayList<>();
 
 
-        Optional<CrucibleRecipeWrapper> sulfur = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "sulfur")));
+        Optional<CrucibleRecipe> sulfur = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "sulfur")));
         CruciblePage.CrucibleStep[] sulfurSteps = sulfur.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack sulfurOutput = sulfur.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(sulfur.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(sulfur.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> deathEssence = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "death_essence")));
+        Optional<CrucibleRecipe> deathEssence = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "death_essence")));
         CruciblePage.CrucibleStep[] deathSteps = deathEssence.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack deathOutput = deathEssence.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(deathEssence.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(deathEssence.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> crimsonEssenceFungus = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "crimson_essence_fungus")));
+        Optional<CrucibleRecipe> crimsonEssenceFungus = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "crimson_essence_fungus")));
         CruciblePage.CrucibleStep[] crimsonFungusSteps = crimsonEssenceFungus.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack crimsonFungusOutput = crimsonEssenceFungus.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(crimsonEssenceFungus.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(crimsonEssenceFungus.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> crimsonEssenceRoots = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "crimson_essence_roots")));
+        Optional<CrucibleRecipe> crimsonEssenceRoots = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "crimson_essence_roots")));
         CruciblePage.CrucibleStep[] crimsonRootsSteps = crimsonEssenceRoots.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack crimsonRootsOutput = crimsonEssenceRoots.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(crimsonEssenceRoots.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(crimsonEssenceRoots.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> crimsonEssenceVines = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "crimson_essence_vines")));
+        Optional<CrucibleRecipe> crimsonEssenceVines = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "crimson_essence_vines")));
         CruciblePage.CrucibleStep[] crimsonVinesSteps = crimsonEssenceVines.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack crimsonVinesOutput = crimsonEssenceVines.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(crimsonEssenceVines.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(crimsonEssenceVines.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> enderCalx = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "ender_calx")));
+        Optional<CrucibleRecipe> enderCalx = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "ender_calx")));
         CruciblePage.CrucibleStep[] calxSteps = enderCalx.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack calxOutput = enderCalx.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(enderCalx.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(enderCalx.map(Recipe::getId).orElse(null));
 
         reagents.addAll(Lists.newArrayList(
                 new TitlePage("eidolon.codex.page.reagents.0"),
@@ -455,15 +448,14 @@ public class EidolonReflectedRegistries {
                 new TitlePage("eidolon.codex.page.reagents.3"),
                 new CruciblePage(calxOutput, calxSteps)));
 
-        reagents.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipeWrapper.Category.REAGENTS));
-
+        //reagents.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipe.Type.REAGENTS));
 
         REAGENTS = new Chapter(
                 "eidolon.codex.chapter.reagents",
                 reagents.toArray(new Page[0])
         );
 
-        Optional<CrucibleRecipeWrapper> soulGem = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "lesser_soul_gem")));
+        Optional<CrucibleRecipe> soulGem = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "lesser_soul_gem")));
         CruciblePage.CrucibleStep[] gemSteps = soulGem.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack gemOutput = soulGem.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
         crucibleRecipes.remove(new ResourceLocation(Eidolon.MODID, "lesser_soul_gem"));
@@ -472,17 +464,17 @@ public class EidolonReflectedRegistries {
                 new TitlePage("eidolon.codex.page.soul_gems"),
                 new CruciblePage(gemOutput, gemSteps));
 
-        soulGems.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipeWrapper.Category.SOUL_GEMS));
+        //soulGems.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipe.Category.SOUL_GEMS));
 
         SOUL_GEMS = new Chapter(
                 "eidolon.codex.chapter.soul_gems",
                 soulGems.toArray(new Page[0])
         );
 
-        Optional<CrucibleRecipeWrapper> shadowGem = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "shadow_gem")));
+        Optional<CrucibleRecipe> shadowGem = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "shadow_gem")));
         CruciblePage.CrucibleStep[] shadowSteps = shadowGem.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack shadowOutput = shadowGem.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(shadowGem.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(shadowGem.map(Recipe::getId).orElse(null));
 
 
         SHADOW_GEM = new Chapter(
@@ -491,56 +483,56 @@ public class EidolonReflectedRegistries {
                 new CruciblePage(shadowOutput, shadowSteps)
         );
 
-        Optional<CrucibleRecipeWrapper> warpedSprouts = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "warped_sprouts")));
+        Optional<CrucibleRecipe> warpedSprouts = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "warped_sprouts")));
         CruciblePage.CrucibleStep[] sproutsSteps = warpedSprouts.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack sproutsOutput = warpedSprouts.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(warpedSprouts.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(warpedSprouts.map(Recipe::getId).orElse(null));
 
         List<Page> sprouts = Lists.newArrayList(
                 new TitlePage("eidolon.codex.page.warped_sprouts.0"),
                 new CruciblePage(sproutsOutput, sproutsSteps),
                 new TitlePage("eidolon.codex.page.warped_sprouts.1"));
-        sprouts.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipeWrapper.Category.WARPED_SPROUTS));
+        //sprouts.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipe.Category.WARPED_SPROUTS));
 
         WARPED_SPROUTS = new Chapter(
                 "eidolon.codex.chapter.warped_sprouts",
                 sprouts.toArray(new Page[0])
         );
 
-        Optional<CrucibleRecipeWrapper> leather = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "leather_from_flesh")));
+        Optional<CrucibleRecipe> leather = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "leather_from_flesh")));
         CruciblePage.CrucibleStep[] leatherSteps = leather.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack leatherOutput = leather.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(leather.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(leather.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> rottenBeef = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "rotten_beef")));
+        Optional<CrucibleRecipe> rottenBeef = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "rotten_beef")));
         CruciblePage.CrucibleStep[] beefSteps = rottenBeef.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack beefOutput = rottenBeef.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(rottenBeef.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(rottenBeef.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> gunpowder = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "gunpowder")));
+        Optional<CrucibleRecipe> gunpowder = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "gunpowder")));
         CruciblePage.CrucibleStep[] powderSteps = gunpowder.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack powderOutput = gunpowder.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(gunpowder.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(gunpowder.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> goldenApple = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "gilded_apple")));
+        Optional<CrucibleRecipe> goldenApple = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "gilded_apple")));
         CruciblePage.CrucibleStep[] appleSteps = goldenApple.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack appleOutput = goldenApple.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(goldenApple.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(goldenApple.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> goldCarrot = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "gilded_carrot")));
+        Optional<CrucibleRecipe> goldCarrot = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "gilded_carrot")));
         CruciblePage.CrucibleStep[] carrotSteps = goldCarrot.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack carrotOutput = goldCarrot.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(goldCarrot.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(goldCarrot.map(Recipe::getId).orElse(null));
 
 
-        Optional<CrucibleRecipeWrapper> gildedMelon = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "gilded_melon")));
+        Optional<CrucibleRecipe> gildedMelon = Optional.ofNullable(crucibleRecipes.get(new ResourceLocation(Eidolon.MODID, "gilded_melon")));
         CruciblePage.CrucibleStep[] melonSteps = gildedMelon.map(CrucibleRecipe::getSteps).map(EidolonReflectedRegistries::getCrucibleSteps).orElse(new CruciblePage.CrucibleStep[0]);
         ItemStack melonOutput = gildedMelon.map(CrucibleRecipe::getResult).orElse(ItemStack.EMPTY);
-        crucibleRecipes.remove(gildedMelon.map(IRecipe::getId).orElse(null));
+        crucibleRecipes.remove(gildedMelon.map(Recipe::getId).orElse(null));
 
         List<Page> alchemy = Lists.newArrayList(
                 new TitlePage("eidolon.codex.page.basic_alchemy.0"),
@@ -554,7 +546,7 @@ public class EidolonReflectedRegistries {
                 new CruciblePage(carrotOutput, carrotSteps),
                 new CruciblePage(melonOutput, melonSteps));
 
-        alchemy.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipeWrapper.Category.BASIC_ALCHEMY));
+        //alchemy.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipe.Category.BASIC_ALCHEMY));
 
         BASIC_ALCHEMY = new Chapter(
                 "eidolon.codex.chapter.basic_alchemy",
@@ -562,19 +554,19 @@ public class EidolonReflectedRegistries {
         );
 
         List<Page> miscCrucible = Lists.newArrayList(new TitlePage("eidolon.codex.page.misc_crucible"));
-        miscCrucible.addAll(getCruciblePagesOf(crucibleRecipes, CrucibleRecipeWrapper.Category.MISC));
+        miscCrucible.addAll(getMiscCruciblePages(crucibleRecipes));
 
         MISC_CRUCIBLE = new Chapter("eidolon.codex.page.misc_crucible.title",
                 miscCrucible.toArray(new Page[0]));
 
 
-        Optional<ICraftingRecipe> pewterInlay = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "pewter_inlay")));
+        Optional<CraftingRecipe> pewterInlay = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "pewter_inlay")));
         ItemStack[] pewterInlayInputs = pewterInlay.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack pewterInlayOutput = pewterInlay.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack pewterInlayOutput = pewterInlay.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> goldInlay = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "gold_inlay")));
+        Optional<CraftingRecipe> goldInlay = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "gold_inlay")));
         ItemStack[] goldInlayInputs = goldInlay.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack goldInlayOutput = goldInlay.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack goldInlayOutput = goldInlay.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
 
         INLAYS = new Chapter(
@@ -584,17 +576,17 @@ public class EidolonReflectedRegistries {
                 new CraftingPage(goldInlayOutput, goldInlayInputs)
         );
 
-        Optional<ICraftingRecipe> basicAmulet = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "basic_amulet")));
+        Optional<CraftingRecipe> basicAmulet = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "basic_amulet")));
         ItemStack[] amuletInputs = basicAmulet.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack amuletOutput = basicAmulet.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack amuletOutput = basicAmulet.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> basicRing = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "basic_ring")));
+        Optional<CraftingRecipe> basicRing = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "basic_ring")));
         ItemStack[] ringInputs = basicRing.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack ringOutput = basicRing.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack ringOutput = basicRing.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
-        Optional<ICraftingRecipe> basicBelt = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "basic_belt")));
+        Optional<CraftingRecipe> basicBelt = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "basic_belt")));
         ItemStack[] beltInputs = basicBelt.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack beltOutput = basicBelt.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack beltOutput = basicBelt.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
 
         BASIC_BAUBLES = new Chapter(
@@ -606,9 +598,9 @@ public class EidolonReflectedRegistries {
         );
 
 
-        Optional<ICraftingRecipe> worktable = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "worktable")));
+        Optional<CraftingRecipe> worktable = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "worktable")));
         ItemStack[] tableInputs = worktable.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack tableOutput = worktable.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack tableOutput = worktable.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         MAGIC_WORKBENCH = new Chapter(
                 "eidolon.codex.chapter.magic_workbench",
@@ -616,9 +608,9 @@ public class EidolonReflectedRegistries {
                 new CraftingPage(tableOutput, tableInputs)
         );
 
-        Optional<WorktableRecipeWrapper> voidAmulet = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "void_amulet")));
+        Optional<WorktableRecipe> voidAmulet = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "void_amulet")));
         ItemStack[] voidAmuletInputs = voidAmulet.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack voidAmuletOutput = voidAmulet.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack voidAmuletOutput = voidAmulet.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "void_amulet"));
 
         VOID_AMULET = new Chapter(
@@ -627,9 +619,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(voidAmuletOutput, voidAmuletInputs)
         );
 
-        Optional<WorktableRecipeWrapper> wardedMail = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "warded_mail")));
+        Optional<WorktableRecipe> wardedMail = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "warded_mail")));
         ItemStack[] mailInputs = wardedMail.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack mailOutput = wardedMail.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack mailOutput = wardedMail.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "warded_mail"));
 
 
@@ -639,9 +631,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(mailOutput, mailInputs)
         );
 
-        Optional<WorktableRecipeWrapper> soulWand = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "soulfire_wand")));
+        Optional<WorktableRecipe> soulWand = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "soulfire_wand")));
         ItemStack[] soulWandInputs = soulWand.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack soulWandOutput = soulWand.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack soulWandOutput = soulWand.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "soulfire_wand"));
 
 
@@ -651,9 +643,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(soulWandOutput, soulWandInputs)
         );
 
-        Optional<WorktableRecipeWrapper> boneWand = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "bonechill_wand")));
+        Optional<WorktableRecipe> boneWand = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "bonechill_wand")));
         ItemStack[] boneWandInputs = boneWand.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack boneWandOutput = boneWand.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack boneWandOutput = boneWand.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "bonechill_wand"));
 
 
@@ -663,9 +655,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(boneWandOutput, boneWandInputs)
         );
 
-        Optional<WorktableRecipeWrapper> reaperScythe = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "reaper_scythe")));
+        Optional<WorktableRecipe> reaperScythe = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "reaper_scythe")));
         ItemStack[] scytheInputs = reaperScythe.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack scytheOutput = reaperScythe.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack scytheOutput = reaperScythe.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "reaper_scythe"));
 
 
@@ -675,9 +667,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(scytheOutput, scytheInputs)
         );
 
-        Optional<WorktableRecipeWrapper> cleavingAxe = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "cleaving_axe")));
+        Optional<WorktableRecipe> cleavingAxe = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "cleaving_axe")));
         ItemStack[] axeInputs = cleavingAxe.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack axeOutput = cleavingAxe.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack axeOutput = cleavingAxe.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "cleaving_axe"));
 
 
@@ -687,9 +679,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(axeOutput, axeInputs)
         );
 
-        Optional<WorktableRecipeWrapper> soulEnchanter = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "soul_enchanter")));
+        Optional<WorktableRecipe> soulEnchanter = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "soul_enchanter")));
         ItemStack[] enchanterInputs = soulEnchanter.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack enchanterOutput = soulEnchanter.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack enchanterOutput = soulEnchanter.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "soul_enchanter"));
 
 
@@ -700,9 +692,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(enchanterOutput, enchanterInputs)
         );
 
-        Optional<WorktableRecipeWrapper> reversalPick = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "reversal_pick")));
+        Optional<WorktableRecipe> reversalPick = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "reversal_pick")));
         ItemStack[] pickInputs = reversalPick.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack pickOutput = reversalPick.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack pickOutput = reversalPick.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "reversal_pick"));
 
 
@@ -712,27 +704,27 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(pickOutput, pickInputs)
         );
 
-        Optional<WorktableRecipeWrapper> wickedWeave = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "wicked_weave")));
+        Optional<WorktableRecipe> wickedWeave = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "wicked_weave")));
         ItemStack[] weaveInputs = wickedWeave.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack weaveOutput = wickedWeave.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack weaveOutput = wickedWeave.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "wicked_weave"));
 
 
-        Optional<WorktableRecipeWrapper> warlockHat = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "warlock_hat")));
+        Optional<WorktableRecipe> warlockHat = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "warlock_hat")));
         ItemStack[] hatInputs = warlockHat.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack hatOutput = warlockHat.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack hatOutput = warlockHat.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "warlock_hat"));
 
 
-        Optional<WorktableRecipeWrapper> warlockCloak = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "warlock_cloak")));
+        Optional<WorktableRecipe> warlockCloak = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "warlock_cloak")));
         ItemStack[] cloakInputs = warlockCloak.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack cloakOutput = warlockCloak.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack cloakOutput = warlockCloak.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "warlock_cloak"));
 
 
-        Optional<WorktableRecipeWrapper> warlockBoots = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "warlock_boots")));
+        Optional<WorktableRecipe> warlockBoots = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "warlock_boots")));
         ItemStack[] bootsInput = warlockBoots.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack bootsOutput = warlockBoots.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack bootsOutput = warlockBoots.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "warlock_boots"));
 
 
@@ -748,9 +740,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(bootsOutput, bootsInput)
         );
 
-        Optional<WorktableRecipeWrapper> gravityBelt = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "gravity_belt")));
+        Optional<WorktableRecipe> gravityBelt = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "gravity_belt")));
         ItemStack[] gravityInputs = gravityBelt.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack gravityOutput = gravityBelt.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack gravityOutput = gravityBelt.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "gravity_belt"));
 
 
@@ -760,9 +752,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(gravityOutput, gravityInputs)
         );
 
-        Optional<WorktableRecipeWrapper> prestigiousPalm = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "prestigious_palm")));
+        Optional<WorktableRecipe> prestigiousPalm = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "prestigious_palm")));
         ItemStack[] palmInputs = prestigiousPalm.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack palmOutput = prestigiousPalm.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack palmOutput = prestigiousPalm.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "prestigious_palm"));
 
 
@@ -772,9 +764,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(palmOutput, palmInputs)
         );
 
-        Optional<WorktableRecipeWrapper> mindShieldingPlate = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "mind_shielding_plate")));
+        Optional<WorktableRecipe> mindShieldingPlate = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "mind_shielding_plate")));
         ItemStack[] plateInputs = mindShieldingPlate.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack plateOutput = mindShieldingPlate.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack plateOutput = mindShieldingPlate.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "mind_shielding_plate"));
 
 
@@ -784,9 +776,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(plateOutput, plateInputs)
         );
 
-        Optional<WorktableRecipeWrapper> resoluteBelt = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "resolute_belt")));
+        Optional<WorktableRecipe> resoluteBelt = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "resolute_belt")));
         ItemStack[] resoluteInputs = resoluteBelt.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack resoluteOutput = resoluteBelt.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack resoluteOutput = resoluteBelt.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "resolute_belt"));
 
 
@@ -796,9 +788,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(resoluteOutput, resoluteInputs)
         );
 
-        Optional<WorktableRecipeWrapper> glassHand = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "glass_hand")));
+        Optional<WorktableRecipe> glassHand = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "glass_hand")));
         ItemStack[] handInputs = glassHand.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack handOutput = glassHand.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack handOutput = glassHand.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "glass_hand"));
 
 
@@ -813,7 +805,7 @@ public class EidolonReflectedRegistries {
         miscWorkbench.addAll(worktableRecipes.values().stream().filter(recipe ->
                 !recipe.getId().equals(getName("unholy_effigy"))
                 && !recipe.getId().equals(getName("stone_altar"))).map(recipe ->
-                new WorktablePage(recipe.getRecipeOutput(), getWorktableInputs(recipe))).collect(Collectors.toList()));
+                new WorktablePage(recipe.getResult(), getWorktableInputs(recipe))).collect(Collectors.toList()));
 
         MISC_WORKBENCH = new Chapter("eidolon.codex.page.misc_workbench.title",
                 miscWorkbench.toArray(new Page[0]));
@@ -871,9 +863,9 @@ public class EidolonReflectedRegistries {
                 new TextPage("eidolon.codex.page.intro_signs.1")
         );
 
-        Optional<ICraftingRecipe> strawEffigy = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "straw_effigy")));
+        Optional<CraftingRecipe> strawEffigy = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "straw_effigy")));
         ItemStack[] effigyInputs = strawEffigy.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack effigyOutput = strawEffigy.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack effigyOutput = strawEffigy.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         EFFIGY = new Chapter(
                 "eidolon.codex.chapter.effigy",
@@ -881,9 +873,9 @@ public class EidolonReflectedRegistries {
                 new CraftingPage(effigyOutput, effigyInputs)
         );
 
-        Optional<ICraftingRecipe> woodenAltar = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "wooden_altar")));
+        Optional<CraftingRecipe> woodenAltar = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "wooden_altar")));
         ItemStack[] woodInputs = woodenAltar.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack woodOutput = woodenAltar.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack woodOutput = woodenAltar.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         ALTARS = new Chapter(
                 "eidolon.codex.chapter.altars",
@@ -920,9 +912,9 @@ public class EidolonReflectedRegistries {
                         new ListPage.ListEntry("wither_rose", new ItemStack(Items.WITHER_ROSE)))
         );
 
-        Optional<ICraftingRecipe> goblet = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "goblet")));
+        Optional<CraftingRecipe> goblet = Optional.ofNullable(craftingRecipes.get(new ResourceLocation(Eidolon.MODID, "goblet")));
         ItemStack[] gobletInputs = goblet.map(EidolonReflectedRegistries::getCraftingInputs).orElse(new ItemStack[0]);
-        ItemStack gobletOutput = goblet.map(IRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack gobletOutput = goblet.map(CraftingRecipe::getResultItem).orElse(ItemStack.EMPTY);
 
         GOBLET = new Chapter(
                 "eidolon.codex.chapter.goblet",
@@ -969,9 +961,9 @@ public class EidolonReflectedRegistries {
         );
         spellRecipes.remove(new ResourceLocation(Eidolon.MODID, "dark_touch"));
 
-        Optional<WorktableRecipeWrapper> stoneAltar = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "stone_altar")));
+        Optional<WorktableRecipe> stoneAltar = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "stone_altar")));
         ItemStack[] stoneInputs = stoneAltar.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack stoneOutput = stoneAltar.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack stoneOutput = stoneAltar.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "stone_altar"));
 
 
@@ -981,9 +973,9 @@ public class EidolonReflectedRegistries {
                 new WorktablePage(stoneOutput, stoneInputs)
         );
 
-        Optional<WorktableRecipeWrapper> unholyEffigy = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "unholy_effigy")));
+        Optional<WorktableRecipe> unholyEffigy = Optional.ofNullable(worktableRecipes.get(new ResourceLocation(Eidolon.MODID, "unholy_effigy")));
         ItemStack[] unholyInputs = unholyEffigy.map(EidolonReflectedRegistries::getWorktableInputs).orElse(new ItemStack[0]);
-        ItemStack unholyOutput = unholyEffigy.map(WorktableRecipe::getRecipeOutput).orElse(ItemStack.EMPTY);
+        ItemStack unholyOutput = unholyEffigy.map(WorktableRecipe::getResult).orElse(ItemStack.EMPTY);
         worktableRecipes.remove(new ResourceLocation(Eidolon.MODID, "unholy_effigy"));
 
 
@@ -1125,30 +1117,26 @@ public class EidolonReflectedRegistries {
     public static ResourceLocation getName(String path) {
         return new ResourceLocation(Eidolon.MODID, path);
     }
-
-    private static ItemStack[] getCraftingInputs(IRecipe<?> recipe) {
-        ItemStack[] inputs = new ItemStack[recipe.getIngredients().size()];
-        int i = 0;
-
-        for (Ingredient ingredient : recipe.getIngredients()) {
-            ItemStack input = Arrays.stream(ingredient.getMatchingStacks()).findFirst().orElse(ItemStack.EMPTY);
-            inputs[i] = input;
-            i++;
-
-        }
-        return inputs;
+    private static ItemStack[] getCraftingInputs(Recipe<?> recipe) {
+        List<ItemStack> stacks = new ArrayList<>();
+        recipe.getIngredients().forEach(ingredient -> {
+            if (!ingredient.isEmpty()) {
+                ItemStack stack = ingredient.getItems()[0];
+                stacks.add(stack);
+            }
+        });
+        return stacks.toArray(new ItemStack[0]);
     }
 
     private static CruciblePage.CrucibleStep[] getCrucibleSteps(List<CrucibleRecipe.Step> steps) {
         List<CruciblePage.CrucibleStep> pageSteps = new ArrayList<>();
 
         steps.forEach(step -> {
-            List<Object> ingredients = step.matches;
+            List<Ingredient> ingredients = step.matches;
             List<ItemStack> inputs = new ArrayList<>();
 
-            ingredients.forEach(o -> {
-                Ingredient ingredient = (Ingredient) o;
-                ItemStack input = Arrays.stream(ingredient.getMatchingStacks()).findFirst().orElse(ItemStack.EMPTY).copy();
+            ingredients.forEach(ingredient -> {
+                ItemStack input = Arrays.stream(ingredient.getItems()).findFirst().orElse(ItemStack.EMPTY).copy();
                 if (inputs.stream().anyMatch(stack -> stack.getItem().equals(input.getItem()))) {
                     ItemStack newStack = inputs
                             .stream()
@@ -1168,8 +1156,8 @@ public class EidolonReflectedRegistries {
         return pageSteps.toArray(new CruciblePage.CrucibleStep[0]);
     }
 
-    private static ItemStack[] getWorktableInputs(WorktableRecipeWrapper wrapper) {
-        ItemStack[] inputs = new ItemStack[wrapper.getCore().size() + wrapper.getOuter().size()];
+    private static ItemStack[] getWorktableInputs(WorktableRecipe wrapper) {
+        ItemStack[] inputs = new ItemStack[wrapper.getCore().length + wrapper.getOuter().length];
         Arrays.fill(inputs, ItemStack.EMPTY);
         int i = 0;
 
@@ -1177,10 +1165,13 @@ public class EidolonReflectedRegistries {
 
             if (o instanceof ItemStack) {
                 inputs[i] = (ItemStack) o;
-            } else if (o instanceof Ingredient) {
-                Ingredient ingredient = (Ingredient) o;
-                ItemStack input = ingredient.getMatchingStacks()[0];
-                inputs[i] = input;
+            } else if (o instanceof Ingredient ingredient) {
+                if (ingredient.isEmpty()) {
+                    inputs[i] = ItemStack.EMPTY;
+                } else {
+                    ItemStack input = ingredient.getItems()[0];
+                    inputs[i] = input;
+                }
             }
             i++;
         }
@@ -1188,30 +1179,27 @@ public class EidolonReflectedRegistries {
         for (Object o : wrapper.getOuter()) {
             if (o instanceof ItemStack) {
                 inputs[i] = (ItemStack) o;
-            } else if (o instanceof Ingredient) {
-                Ingredient ingredient = (Ingredient) o;
-                ItemStack input = ingredient.getMatchingStacks()[0];
-                inputs[i] = input;
+            } else if (o instanceof Ingredient ingredient) {
+                if (ingredient.isEmpty()) {
+                    inputs[i] = ItemStack.EMPTY;
+                } else {
+                    ItemStack input = ingredient.getItems()[0];
+                    inputs[i] = input;
+                }
             }
             i++;
         }
         return inputs;
     }
 
-    private static List<Page> getCruciblePagesOf(Map<ResourceLocation, CrucibleRecipeWrapper> crucibleRecipes,
-                                                 CrucibleRecipeWrapper.Category category) {
-        Map<ResourceLocation, CrucibleRecipeWrapper> reagents = new HashMap<>();
+   private static List<Page> getMiscCruciblePages(Map<ResourceLocation, CrucibleRecipe> crucibleRecipes) {
+        Map<ResourceLocation, CrucibleRecipe> reagents = new HashMap<>();
         List<Page> pages = new ArrayList<>();
 
-        for (CrucibleRecipeWrapper wrapper : crucibleRecipes.values()) {
-            if (wrapper.category == category) {
-                reagents.put(wrapper.getId(), wrapper);
-            }
+        for (CrucibleRecipe wrapper : crucibleRecipes.values()) {
+            reagents.put(wrapper.getId(), wrapper);
         }
         reagents.forEach((id, wrapper) -> {
-            if (!wrapper.title.isEmpty()) {
-                pages.add(new TitlePage2(wrapper.title, wrapper.description));
-            }
             CruciblePage.CrucibleStep[] steps = getCrucibleSteps(wrapper.getSteps());
             pages.add(new CruciblePage(wrapper.getResult(), steps));
         });
@@ -1219,8 +1207,7 @@ public class EidolonReflectedRegistries {
     }
 
     private static ItemStack getRitualIcon(Ritual ritual) {
-        if (ritual instanceof RitualRecipeWrapper) {
-            RitualRecipeWrapper wrapper = (RitualRecipeWrapper) ritual;
+        if (ritual instanceof RitualRecipeWrapper wrapper) {
             Optional<RitualRecipeWrapper.Result> firstResult = wrapper.getResults().stream().findFirst();
             if (firstResult.isPresent()) {
                 RitualRecipeWrapper.Result result = firstResult.get();

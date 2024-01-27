@@ -15,7 +15,7 @@ import dev.infernal_coding.eidolonrecipes.spells.type.ISpell;
 import dev.infernal_coding.eidolonrecipes.spells.type.ISpellSerializer;
 import dev.infernal_coding.eidolonrecipes.spells.type.impl.BasicSpell;
 import dev.infernal_coding.eidolonrecipes.spells.type.impl.TransmutationSpell;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashMap;
 import java.util.Map;

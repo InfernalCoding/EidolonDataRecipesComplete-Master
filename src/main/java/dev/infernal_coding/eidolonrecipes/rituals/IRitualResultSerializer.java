@@ -1,29 +1,34 @@
 package dev.infernal_coding.eidolonrecipes.rituals;
 
 import com.google.gson.JsonObject;
+import elucent.eidolon.ritual.Ritual;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.entity.CreatureEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.merchant.villager.AbstractVillagerEntity;
-import net.minecraft.entity.monster.*;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.monster.AbstractIllager;
+import net.minecraft.world.entity.monster.AbstractSkeleton;
+import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.raid.Raider;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+
 
 public interface IRitualResultSerializer {
 
     RitualManager.ResultColorPair getColorAndResult(JsonObject json, int color, boolean isColorPreset, String type);
 
-    RitualManager.ResultColorPair getColorAndResult(PacketBuffer buffer, int color, boolean isColorPreset, String type);
+    RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type);
 
-    void writeResult(RitualRecipeWrapper.Result result, PacketBuffer buffer);
+    void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer);
 
-    void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos);
+    void startRitual(Ritual ritual, RitualRecipeWrapper.Result result, Level world, BlockPos pos);
 
-    boolean onRitualTick(RitualRecipeWrapper.Result result, World world, BlockPos pos);
+    boolean onRitualTick(RitualRecipeWrapper.Result result, Level world, BlockPos pos);
 
     boolean getRunsOnTick();
 
@@ -48,7 +53,7 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(95, 3, 12, 34);
                 }
-                return new RitualManager.ResultColorPair(color, count, AnimalEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, Animal.class, resultType);
             }
 
             case "creature":
@@ -57,7 +62,7 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(21, 121, 11, 20);
                 }
-                return new RitualManager.ResultColorPair(color, count, CreatureEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, PathfinderMob.class, resultType);
 
             case "monster": {
 
@@ -66,7 +71,7 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(100, 35, 80, 175);
                 }
-                return new RitualManager.ResultColorPair(color, count, MonsterEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, PathfinderMob.class, resultType);
             }
 
             case "zombie": {
@@ -75,7 +80,7 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(100, 35, 80, 175);
                 }
-                return new RitualManager.ResultColorPair(color, count, ZombieEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, Zombie.class, resultType);
             }
 
             case "villager": {
@@ -84,7 +89,7 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(100, 35, 80, 175);
                 }
-                return new RitualManager.ResultColorPair(color, count, AbstractVillagerEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, AbstractVillager.class, resultType);
             }
 
             case "skeleton": {
@@ -93,7 +98,7 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(100, 35, 80, 175);
                 }
-                return new RitualManager.ResultColorPair(color, count, AbstractSkeletonEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, AbstractSkeleton.class, resultType);
 
             }
 
@@ -103,7 +108,7 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(100, 35, 80, 175);
                 }
-                return new RitualManager.ResultColorPair(color, count, AbstractRaiderEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, Raider.class, resultType);
             }
 
             case "illager": {
@@ -112,43 +117,43 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(100, 35, 80, 175);
                 }
-                return new RitualManager.ResultColorPair(color, count, AbstractIllagerEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, AbstractIllager.class, resultType);
             }
         }
         return new RitualManager.ResultColorPair(color, count, LivingEntity.class, resultType);
     }
 
-    default void writeClassName(String className, PacketBuffer buffer) {
+    default void writeClassName(String className, FriendlyByteBuf buffer) {
         switch (className) {
             case "Entity":
-                buffer.writeString("entity");
+                buffer.writeUtf("entity");
                 break;
             case "AnimalEntity":
-                buffer.writeString("animal");
+                buffer.writeUtf("animal");
                 break;
             case "CreatureEntity":
-                buffer.writeString("creature");
+                buffer.writeUtf("creature");
                 break;
             case "MonsterEntity":
-                buffer.writeString("monster");
+                buffer.writeUtf("monster");
                 break;
             case "ZombieEntity":
-                buffer.writeString("zombie");
+                buffer.writeUtf("zombie");
                 break;
             case "AbstractVillagerEntity":
-                buffer.writeString("villager");
+                buffer.writeUtf("villager");
                 break;
             case "AbstractSkeletonEntity":
-                buffer.writeString("skeleton");
+                buffer.writeUtf("skeleton");
                 break;
             case "AbstractRaiderEntity":
-                buffer.writeString("raider");
+                buffer.writeUtf("raider");
                 break;
             case "AbstractIllagerEntity":
-                buffer.writeString("illager");
+                buffer.writeUtf("illager");
                 break;
             default:
-                buffer.writeString("living");
+                buffer.writeUtf("living");
                 break;
         }
     }

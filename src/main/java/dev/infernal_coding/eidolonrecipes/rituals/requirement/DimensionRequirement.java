@@ -3,9 +3,9 @@ package dev.infernal_coding.eidolonrecipes.rituals.requirement;
 import elucent.eidolon.ritual.IRequirement;
 import elucent.eidolon.ritual.RequirementInfo;
 import elucent.eidolon.ritual.Ritual;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 
 public class DimensionRequirement implements IRequirement {
     public ResourceLocation dimension;
@@ -14,9 +14,9 @@ public class DimensionRequirement implements IRequirement {
     }
 
     @Override
-    public RequirementInfo isMet(Ritual ritual, World world, BlockPos blockPos) {
+    public RequirementInfo isMet(Ritual ritual, Level world, BlockPos blockPos) {
 
-        if (world.getDimensionKey().getLocation().equals(dimension)) {
+        if (world.dimension().registry().equals(dimension)) {
             return RequirementInfo.TRUE;
         }
         return RequirementInfo.FALSE;

@@ -5,20 +5,23 @@ import dev.infernal_coding.eidolonrecipes.rituals.IRitualResultSerializer;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualManager;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualRecipeWrapper;
 import dev.infernal_coding.eidolonrecipes.util.EntityUtil;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
 import elucent.eidolon.entity.ai.GoToPositionGoal;
+import elucent.eidolon.ritual.Ritual;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.entity.CreatureEntity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.ai.goal.Goal;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.common.ForgeSpawnEggItem;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.List;
 import java.util.Objects;
@@ -27,7 +30,6 @@ import java.util.stream.Collectors;
 
 import static dev.infernal_coding.eidolonrecipes.util.EntityUtil.getEntityType;
 import static dev.infernal_coding.eidolonrecipes.util.ItemUtil.getEntityFromJson;
-import static dev.infernal_coding.eidolonrecipes.rituals.IRitualResultSerializer.*;
 
 public class AllureSerializer implements IRitualResultSerializer {
     public static final String ID = "allure";
@@ -50,8 +52,8 @@ public class AllureSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public RitualManager.ResultColorPair getColorAndResult(PacketBuffer buffer, int color, boolean isColorPreset, String type) {
-        String name = buffer.readString();
+    public RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type) {
+        String name = buffer.readUtf();
 
         if (getEntityType(name) != null) {
             if (color > 0 && !isColorPreset) {
@@ -65,27 +67,29 @@ public class AllureSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public void writeResult(RitualRecipeWrapper.Result result, PacketBuffer buffer) {
-        buffer.writeString(result.getVariant());
+    public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
+        buffer.writeUtf(result.getVariant());
 
         if (result.getToCreate() instanceof Class<?>) {
             Class<?> entityClass = (Class<?>) result.getToCreate();
             writeClassName(entityClass.getName(), buffer);
         } else if (result.getToCreate() instanceof EntityType<?>) {
             EntityType<?> entityType = (EntityType<?>) result.getToCreate();
-            buffer.writeResourceLocation(Objects.requireNonNull(entityType.getRegistryName()));
+            buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(entityType)));
         }
     }
 
     @Override
-    public void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos) {}
+    public void startRitual(Ritual ritual, RitualRecipeWrapper.Result result, Level world, BlockPos pos) {}
+
     @Override
-    public boolean onRitualTick(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public boolean onRitualTick(RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         if (result.getToCreate() instanceof EntityType<?>) {
-            return lureMobs(world, pos, (EntityType<CreatureEntity>) result.getToCreate());
+            return lureMobs(world, pos, (EntityType<PathfinderMob>) result.getToCreate());
         } else if (result.getToCreate() instanceof Class<?>) {
-            return lureMobType(world, pos, (Class<CreatureEntity>) result.getToCreate());
+            return lureMobType(world, pos, (Class<PathfinderMob>) result.getToCreate());
         }
+
         return false;
     }
 
@@ -104,18 +108,18 @@ public class AllureSerializer implements IRitualResultSerializer {
         return new ItemStack(Items.FOX_SPAWN_EGG);
     }
 
-    private boolean lureMobs(World world, BlockPos pos, EntityType<CreatureEntity> entityType) {
+    private boolean lureMobs(Level world, BlockPos pos, EntityType<PathfinderMob> entityType) {
         if (world.getGameTime() % 200 == 0) {
 
-            List<CreatureEntity> entities = world.getEntitiesWithinAABB(entityType, new AxisAlignedBB(pos).grow(96, 16, 96), null);
-            for (CreatureEntity entity : entities) {
+            List<PathfinderMob> entities = world.getEntities(entityType, new AABB(pos).inflate(96, 16, 96), s -> true);
+            for (PathfinderMob entity : entities) {
                 boolean hasGoal = entity.goalSelector.getRunningGoals()
                         .filter((goal) -> goal.getGoal() instanceof GoToPositionGoal)
                         .count() > 0;
-                if (!hasGoal && entity.getDistanceSq(pos.getX(), pos.getY(), pos.getZ()) >= 12 * 12 && world.rand.nextInt(40) == 0) {
-                    BlockPos target = pos.down().add(world.rand.nextInt(9) - 4, 0, world.rand.nextInt(9) - 4);
+                if (!hasGoal && entity.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) >= 12 * 12 && world.random.nextInt(40) == 0) {
+                    BlockPos target = pos.below().offset(world.random.nextInt(9) - 4, 0, world.random.nextInt(9) - 4);
                     entity.goalSelector.addGoal(1, new GoToPositionGoal(entity, target, 1.0));
-                } else if (hasGoal && entity.getDistanceSq(pos.getX(), pos.getY(), pos.getZ()) < 8 * 8) {
+                } else if (hasGoal && entity.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) < 8 * 8) {
                     List<Goal> goals = entity.goalSelector.getRunningGoals().filter((goal) -> goal.getGoal() instanceof GoToPositionGoal)
                             .collect(Collectors.toList());
                     for (Goal g : goals) entity.goalSelector.removeGoal(g);
@@ -125,19 +129,19 @@ public class AllureSerializer implements IRitualResultSerializer {
         return true;
     }
 
-    private boolean lureMobType(World world, BlockPos pos, Class<CreatureEntity> entityType) {
+    private boolean lureMobType(Level world, BlockPos pos, Class<PathfinderMob> entityType) {
         if (world.getGameTime() % 200 == 0) {
 
-            List<CreatureEntity> entities = world.getEntitiesWithinAABB(entityType, new AxisAlignedBB(pos).grow(96, 16, 96));
-            for (CreatureEntity entity : entities) {
+            List<PathfinderMob> entities = world.getEntitiesOfClass(entityType, new AABB(pos).inflate(96, 16, 96));
+            for (PathfinderMob entity : entities) {
                 boolean hasGoal = entity.goalSelector.getRunningGoals()
                         .filter((goal) -> goal.getGoal() instanceof GoToPositionGoal)
                         .count() > 0;
 
-                if (!hasGoal && entity.getDistanceSq(pos.getX(), pos.getY(), pos.getZ()) >= 12 * 12 && world.rand.nextInt(40) == 0) {
-                    BlockPos target = pos.down().add(world.rand.nextInt(9) - 4, 0, world.rand.nextInt(9) - 4);
+                if (!hasGoal && entity.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) >= 12 * 12 && world.random.nextInt(40) == 0) {
+                    BlockPos target = pos.below().offset(world.random.nextInt(9) - 4, 0, world.random.nextInt(9) - 4);
                     entity.goalSelector.addGoal(1, new GoToPositionGoal(entity, target, 1.0));
-                } else if (hasGoal && entity.getDistanceSq(pos.getX(), pos.getY(), pos.getZ()) < 8 * 8) {
+                } else if (hasGoal && entity.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) < 8 * 8) {
                     List<Goal> goals = entity.goalSelector.getRunningGoals().filter((goal) -> goal.getGoal() instanceof GoToPositionGoal)
                             .collect(Collectors.toList());
                     for (Goal g : goals) entity.goalSelector.removeGoal(g);

@@ -1,14 +1,10 @@
 {
   "required": true,
   "package": "dev.infernal_coding.eidolonrecipes.mixin",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_17",
   "refmap": "eidolonrecipes.refmap.json",
   "mixins": [
-    "CrucibleRecipeMixin",
-    "IngredientMixin",
-    "StackUtilMixin",
-    "WorktableRecipeMixin",
-    "getters.StaticSpellMixin"
+
   ],
   "minVersion": "0.8"
 }

@@ -6,12 +6,12 @@ import dev.infernal_coding.eidolonrecipes.spells.SpellInfo;
 import dev.infernal_coding.eidolonrecipes.spells.SpellRecipeWrapper;
 import dev.infernal_coding.eidolonrecipes.spells.result.ISpellResult;
 import dev.infernal_coding.eidolonrecipes.spells.result.ISpellResultSerializer;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 public class UnlockResult implements ISpellResult {
     public static final ResourceLocation ID = ModRoot.eidolonRes("unlock");
@@ -23,7 +23,7 @@ public class UnlockResult implements ISpellResult {
 
 
     @Override
-    public void onCast(SpellRecipeWrapper spell, World world, BlockPos pos, PlayerEntity caster, SpellInfo spellInfo) {
+    public void onCast(SpellRecipeWrapper spell, Level world, BlockPos pos, Player caster, SpellInfo spellInfo) {
         if (spellInfo.reputation.unlock(caster, spell.getDeity().getId(), this.lock)) {
             spell.getDeity().onReputationUnlock(caster, spellInfo.reputation, this.lock);
         }
@@ -43,16 +43,16 @@ public class UnlockResult implements ISpellResult {
 
         @Override
         public UnlockResult deserialize(JsonObject json) {
-            return new UnlockResult(new ResourceLocation(JSONUtils.getString(json, "lock")));
+            return new UnlockResult(new ResourceLocation(JSONUtils.getString(json, "lock", "")));
         }
 
         @Override
-        public void write(PacketBuffer buf, UnlockResult result) {
+        public void write(FriendlyByteBuf buf, UnlockResult result) {
             buf.writeResourceLocation(result.lock);
         }
 
         @Override
-        public UnlockResult read(PacketBuffer buf) {
+        public UnlockResult read(FriendlyByteBuf buf) {
             return new UnlockResult(buf.readResourceLocation());
         }
 

@@ -10,7 +10,8 @@ import dev.infernal_coding.eidolonrecipes.spells.result.ISpellResult;
 import dev.infernal_coding.eidolonrecipes.spells.result.ISpellResultSerializer;
 import dev.infernal_coding.eidolonrecipes.spells.type.ISpell;
 import dev.infernal_coding.eidolonrecipes.spells.type.ISpellSerializer;
-import elucent.eidolon.capability.ReputationProvider;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
+import elucent.eidolon.capability.IReputation;
 import elucent.eidolon.deity.Deities;
 import elucent.eidolon.deity.Deity;
 import elucent.eidolon.ritual.Ritual;
@@ -21,19 +22,17 @@ import elucent.eidolon.spell.StaticSpell;
 import elucent.eidolon.tile.EffigyTileEntity;
 import elucent.eidolon.tile.GobletTileEntity;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.item.crafting.IRecipeSerializer;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.registries.ForgeRegistryEntry;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -41,7 +40,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventory> {
+public class SpellRecipeWrapper extends StaticSpell implements Recipe<Container> {
 
     private final Sign[] signs;
 
@@ -66,17 +65,17 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
     }
 
     @Override
-    public boolean canCast(World world, BlockPos pos, PlayerEntity caster) {
-        if (!world.getCapability(ReputationProvider.CAPABILITY).isPresent()) {
+    public boolean canCast(Level world, BlockPos pos, Player caster) {
+        if (!world.getCapability(IReputation.INSTANCE).isPresent()) {
             return false;
         } else {
-            List<GobletTileEntity> goblets = Ritual.getTilesWithinAABB(GobletTileEntity.class, world, new AxisAlignedBB(pos.add(-4, -4, -4), pos.add(5, 5, 5)));
-            List<EffigyTileEntity> effigies = Ritual.getTilesWithinAABB(EffigyTileEntity.class, world, new AxisAlignedBB(pos.add(-4, -4, -4), pos.add(5, 5, 5)));
-            Optional<EffigyTileEntity> effigy = effigies.stream().min(Comparator.comparingDouble((e) -> e.getPos().distanceSq(pos)));
-            Optional<GobletTileEntity> goblet = goblets.stream().min(Comparator.comparingDouble((e) -> e.getPos().distanceSq(pos)));
-            Optional<AltarInfo> altar = effigy.map(effigyTileEntity -> AltarInfo.getAltarInfo(world, effigyTileEntity.getPos()));
+            List<GobletTileEntity> goblets = Ritual.getTilesWithinAABB(GobletTileEntity.class, world, new AABB(pos.offset(-4, -4, -4), pos.offset(5, 5, 5)));
+            List<EffigyTileEntity> effigies = Ritual.getTilesWithinAABB(EffigyTileEntity.class, world, new AABB(pos.offset(-4, -4, -4), pos.offset(5, 5, 5)));
+            Optional<EffigyTileEntity> effigy = effigies.stream().min(Comparator.comparingDouble((e) -> e.getBlockPos().distSqr(pos)));
+            Optional<GobletTileEntity> goblet = goblets.stream().min(Comparator.comparingDouble((e) -> e.getBlockPos().distSqr(pos)));
+            Optional<AltarInfo> altar = effigy.map(effigyTileEntity -> AltarInfo.getAltarInfo(world, effigyTileEntity.getBlockPos()));
 
-            SpellInfo spellInfo = new SpellInfo(effigy, goblet, altar, world.getCapability(ReputationProvider.CAPABILITY).resolve().get());
+            SpellInfo spellInfo = new SpellInfo(effigy, goblet, altar, world.getCapability(IReputation.INSTANCE).resolve().get());
 
             for (ISpellRequirement requirement : this.requirements) {
                 if (!requirement.canCast(this, world, pos, caster, spellInfo)) {
@@ -89,14 +88,14 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
     }
 
     @Override
-    public void cast(World world, BlockPos pos, PlayerEntity caster) {
-        List<GobletTileEntity> goblets = Ritual.getTilesWithinAABB(GobletTileEntity.class, world, new AxisAlignedBB(pos.add(-4, -4, -4), pos.add(5, 5, 5)));
-        List<EffigyTileEntity> effigies = Ritual.getTilesWithinAABB(EffigyTileEntity.class, world, new AxisAlignedBB(pos.add(-4, -4, -4), pos.add(5, 5, 5)));
-        Optional<EffigyTileEntity> effigy = effigies.stream().min(Comparator.comparingDouble((e) -> e.getPos().distanceSq(pos)));
-        Optional<GobletTileEntity> goblet = goblets.stream().min(Comparator.comparingDouble((e) -> e.getPos().distanceSq(pos)));
-        Optional<AltarInfo> altar = effigy.map(effigyTileEntity -> AltarInfo.getAltarInfo(world, effigyTileEntity.getPos()));
+    public void cast(Level world, BlockPos pos, Player caster) {
+        List<GobletTileEntity> goblets = Ritual.getTilesWithinAABB(GobletTileEntity.class, world, new AABB(pos.offset(-4, -4, -4), pos.offset(5, 5, 5)));
+        List<EffigyTileEntity> effigies = Ritual.getTilesWithinAABB(EffigyTileEntity.class, world, new AABB(pos.offset(-4, -4, -4), pos.offset(5, 5, 5)));
+        Optional<EffigyTileEntity> effigy = effigies.stream().min(Comparator.comparingDouble((e) -> e.getBlockPos().distSqr(pos)));
+        Optional<GobletTileEntity> goblet = goblets.stream().min(Comparator.comparingDouble((e) -> e.getBlockPos().distSqr(pos)));
+        Optional<AltarInfo> altar = effigy.map(effigyTileEntity -> AltarInfo.getAltarInfo(world, effigyTileEntity.getBlockPos()));
 
-        SpellInfo spellInfo = new SpellInfo(effigy, goblet, altar, world.getCapability(ReputationProvider.CAPABILITY).resolve().get());
+        SpellInfo spellInfo = new SpellInfo(effigy, goblet, altar, world.getCapability(IReputation.INSTANCE).resolve().get());
 
         for (ISpellResult result : this.results) {
             result.onCast(this, world, pos, caster, spellInfo);
@@ -146,39 +145,41 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
     }
 
     @Override
-    public IRecipeSerializer<?> getSerializer() {
+    public RecipeSerializer<?> getSerializer() {
         return RecipeTypes.SPELL_SERIALIZER.get();
     }
 
     @Override
-    public IRecipeType<?> getType() {
-        return RecipeTypes.SPELL;
+    public RecipeType<?> getType() {
+        return RecipeTypes.SPELL.get();
     }
 
+
+
     @Override
-    public boolean matches(IInventory inv, World worldIn) {
+    public boolean matches(Container inv, Level worldIn) {
         return false;
     }
 
     @Override
-    public ItemStack getCraftingResult(IInventory inv) {
+    public ItemStack assemble(Container inv) {
         return ItemStack.EMPTY;
     }
 
     @Override
-    public boolean canFit(int width, int height) {
+    public boolean canCraftInDimensions(int width, int height) {
         return false;
     }
 
     @Override
-    public ItemStack getRecipeOutput() {
+    public ItemStack getResultItem() {
         return ItemStack.EMPTY;
     }
 
-    public static class Serializer extends ForgeRegistryEntry<IRecipeSerializer<?>> implements IRecipeSerializer<SpellRecipeWrapper> {
+    public static class Serializer implements RecipeSerializer<SpellRecipeWrapper> {
 
         @Override
-        public SpellRecipeWrapper read(ResourceLocation recipeId, JsonObject json) {
+        public SpellRecipeWrapper fromJson(ResourceLocation recipeId, JsonObject json) {
             // Deity
             ResourceLocation deityName = new ResourceLocation(JSONUtils.getString(json, "deity", ""));
             Deity deity = Deities.find(deityName);
@@ -188,7 +189,7 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
 
 
             // Signs
-            JsonArray signsJson = JSONUtils.getJsonArray(json, "signs");
+            JsonArray signsJson = JSONUtils.getJSONArray(json, "signs");
             List<Sign> signs = new ArrayList<>();
             signsJson.forEach(signJson -> {
                 ResourceLocation signName = new ResourceLocation(signJson.getAsString()) ;
@@ -201,7 +202,7 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
 
             // Spell
             JsonObject spellJson = JSONUtils.getJsonObject(json, "spell");
-            ResourceLocation spellType = new ResourceLocation(JSONUtils.getString(spellJson, "type"));
+            ResourceLocation spellType = new ResourceLocation(JSONUtils.getString(spellJson, "type", ""));
             ISpellSerializer<ISpell> spellTypeSerializer = SpellManager.getSpellSerializer(spellType);
             if (spellTypeSerializer == null) {
                 throw new JsonSyntaxException("Unknown Spell Type '" + spellType + "'");
@@ -210,10 +211,10 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
 
             // Requirements
             List<ISpellRequirement> requirements = new ArrayList<>();
-            JsonArray requirementsJson = JSONUtils.getJsonArray(json, "requirements", new JsonArray());
+            JsonArray requirementsJson = JSONUtils.getJSONArray(json, "requirements");
             requirementsJson.forEach(j -> {
                 JsonObject reqJson = (JsonObject) j;
-                ResourceLocation type = new ResourceLocation(JSONUtils.getString(reqJson, "type"));
+                ResourceLocation type = new ResourceLocation(JSONUtils.getString(reqJson, "type", ""));
                 ISpellRequirementSerializer<ISpellRequirement> requirementSerializer = SpellManager.getRequirementSerializer(type);
                 if (requirementSerializer == null) {
                     throw new JsonSyntaxException("Unknown Requirement Type '" + type + "'");
@@ -223,10 +224,10 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
 
             // Results
             List<ISpellResult> results = new ArrayList<>();
-            JsonArray resultsJson = JSONUtils.getJsonArray(json, "results", new JsonArray());
+            JsonArray resultsJson = JSONUtils.getJSONArray(json, "results");
             resultsJson.forEach(j -> {
                 JsonObject resJson = (JsonObject) j;
-                ResourceLocation type = new ResourceLocation(JSONUtils.getString(resJson, "type"));
+                ResourceLocation type = new ResourceLocation(JSONUtils.getString(resJson, "type", ""));
                 ISpellResultSerializer<ISpellResult> resultSerializer = SpellManager.getResultSerializer(type);
                 if (resultSerializer == null) {
                     throw new JsonSyntaxException("Unknown Result Type '" + type + "'");
@@ -237,7 +238,7 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
             // Color
             Optional<Integer> color = Optional.empty();
             if (json.has("particleColor")) {
-                JsonArray colorArray = JSONUtils.getJsonArray(json, "particleColor");
+                JsonArray colorArray = JSONUtils.getJSONArray(json, "particleColor");
                 color = Optional.of(ColorUtil.packColor(colorArray.get(0).getAsInt(), colorArray.get(1).getAsInt(), colorArray.get(2).getAsInt(), colorArray.get(3).getAsInt()));
             }
 
@@ -249,7 +250,7 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
         }
 
         @Override
-        public void write(PacketBuffer buffer, SpellRecipeWrapper recipe) {
+        public void toNetwork(FriendlyByteBuf buffer, SpellRecipeWrapper recipe) {
             // Deity
             buffer.writeResourceLocation(recipe.getDeity().getId());
 
@@ -281,14 +282,14 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
             buffer.writeBoolean(recipe.color.isPresent());
             recipe.color.ifPresent(buffer::writeInt);
 
-            buffer.writeString(recipe.title);
-            buffer.writeString(recipe.chant);
-            buffer.writeString(recipe.text);
+            buffer.writeUtf(recipe.title);
+            buffer.writeUtf(recipe.chant);
+            buffer.writeUtf(recipe.text);
         }
 
         @Nullable
         @Override
-        public SpellRecipeWrapper read(ResourceLocation recipeId, PacketBuffer buffer) {
+        public SpellRecipeWrapper fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
             // Deity
             ResourceLocation deityName = buffer.readResourceLocation();
             Deity deity = Deities.find(deityName);
@@ -323,9 +324,9 @@ public class SpellRecipeWrapper extends StaticSpell implements IRecipe<IInventor
                 color = Optional.of(buffer.readInt());
             }
 
-            String title = buffer.readString();
-            String chant = buffer.readString();
-            String text = buffer.readString();
+            String title = buffer.readUtf();
+            String chant = buffer.readUtf();
+            String text = buffer.readUtf();
 
             return new SpellRecipeWrapper(recipeId, deity, spell, requirements.toArray(new ISpellRequirement[0]), results.toArray(new ISpellResult[0]), title, chant, text, color, signs.toArray(new Sign[0]));
         }

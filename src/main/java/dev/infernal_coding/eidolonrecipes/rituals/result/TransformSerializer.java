@@ -5,23 +5,23 @@ import com.mojang.datafixers.util.Pair;
 import dev.infernal_coding.eidolonrecipes.rituals.IRitualResultSerializer;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualManager;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualRecipeWrapper;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
 import elucent.eidolon.ritual.Ritual;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.MobEntity;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.monster.ZombieVillagerEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.SoundEvents;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraft.world.server.ServerWorld;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.monster.ZombieVillager;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -61,12 +61,12 @@ public class TransformSerializer implements IRitualResultSerializer {
         return null;
     }
     @Override
-    public RitualManager.ResultColorPair getColorAndResult(PacketBuffer buffer, int color, boolean isColorPreset, String type) {
-        String entityOneName = buffer.readString();
+    public RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type) {
+        String entityOneName = buffer.readUtf();
         int numOfEntity2 = 1;
 
         EntityType<?> entityOne = getEntityType(entityOneName);
-        EntityType<?> entityTwo = ForgeRegistries.ENTITIES.getValue(buffer.readResourceLocation());
+        EntityType<?> entityTwo = ForgeRegistries.ENTITY_TYPES.getValue(buffer.readResourceLocation());
 
         try {
             numOfEntity2 = buffer.readInt();
@@ -89,8 +89,8 @@ public class TransformSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public void writeResult(RitualRecipeWrapper.Result result, PacketBuffer buffer) {
-        buffer.writeString(result.getVariant());
+    public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
+        buffer.writeUtf(result.getVariant());
 
         if (result.getToCreate() instanceof Pair) {
             Pair<?, EntityType<?>> entityTransformPair = (Pair<?, EntityType<?>>) result.getToCreate();
@@ -100,15 +100,15 @@ public class TransformSerializer implements IRitualResultSerializer {
                 writeClassName(entity1Class.getName(), buffer);
             } else if (entityTransformPair.getFirst() instanceof EntityType) {
                 EntityType<?> entity1Type = (EntityType<?>) entityTransformPair.getFirst();
-                buffer.writeResourceLocation(Objects.requireNonNull(entity1Type.getRegistryName()));
+                buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(entity1Type)));
             }
             EntityType<?> entity2Type = entityTransformPair.getSecond();
-            buffer.writeResourceLocation(Objects.requireNonNull(entity2Type.getRegistryName()));
+            buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(entity2Type)));
         }
     }
 
     @Override
-    public void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public void startRitual(Ritual ritual, RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         if (result.getToCreate() instanceof Pair) {
 
              Pair<?, ?> pairCheck = (Pair<?, ?>) result.getToCreate();
@@ -136,72 +136,72 @@ public class TransformSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public boolean onRitualTick(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public boolean onRitualTick(RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
          return false;
     }
 
-    private void transformMobType(World world, BlockPos pos, Pair<Class<Entity>, EntityType<?>> pair, int numOfEntityTwo) {
-        List<Entity> purifiable = world.getEntitiesWithinAABB(pair.getFirst(), Ritual.getDefaultBounds(pos));
-        if (!purifiable.isEmpty() && !world.isRemote) {
-            world.playSound(null, pos, SoundEvents.ENTITY_ZOMBIE_VILLAGER_CURE,
-                    SoundCategory.PLAYERS, 1.0f, 1.0f);
+    private void transformMobType(Level world, BlockPos pos, Pair<Class<Entity>, EntityType<?>> pair, int numOfEntityTwo) {
+        List<Entity> purifiable = world.getEntitiesOfClass(pair.getFirst(), Ritual.getDefaultBounds(pos));
+        if (!purifiable.isEmpty() && !world.isClientSide) {
+            world.playSound(null, pos, SoundEvents.ZOMBIE_VILLAGER_CURE,
+                    SoundSource.PLAYERS, 1.0f, 1.0f);
         }
 
-        if (!world.isRemote) for (Entity entity : purifiable) {
-            BlockPos pos1 = entity.getPosition();
-            if (entity instanceof ZombieVillagerEntity && pair.getSecond() == EntityType.VILLAGER) {
-                ((ZombieVillagerEntity) entity).cureZombie((ServerWorld) world);
+        if (!world.isClientSide) for (Entity entity : purifiable) {
+            BlockPos pos1 = entity.getOnPos();
+            if (entity instanceof ZombieVillager zombie && pair.getSecond() == EntityType.VILLAGER) {
+                zombie.finishConversion((ServerLevel) world);
                 for (int i = 1; i < numOfEntityTwo; i++) {
-                    world.addEntity(entity);
-                    entity.setPosition(pos1.getX(), pos1.getY(), pos1.getZ());
+                    world.addFreshEntity(entity);
+                    entity.setPos(pos1.getX(), pos1.getY(), pos1.getZ());
                 }
                 return;
             } else {
 
                 Entity newEntity = pair.getSecond().create(world);
-                newEntity.copyLocationAndAnglesFrom(entity);
+                newEntity.copyPosition(entity);
 
-                if (newEntity instanceof MobEntity) {
-                    ((MobEntity) newEntity).onInitialSpawn((ServerWorld) world, world.getDifficultyForLocation(pos),
-                            SpawnReason.MOB_SUMMONED, null, null);
+                if (newEntity instanceof Mob mob) {
+                    mob.finalizeSpawn((ServerLevel) world, world.getCurrentDifficultyAt(pos),
+                            MobSpawnType.MOB_SUMMONED, null, null);
                 }
-                world.addEntity(newEntity);
-                newEntity.setPosition(pos1.getX(), pos1.getY(), pos1.getZ());
+                world.addFreshEntity(newEntity);
+                newEntity.setPos(pos1.getX(), pos1.getY(), pos1.getZ());
 
-                if (entity instanceof PlayerEntity) {
-                    entity.onKillCommand();
-                } else entity.remove();
+                if (entity instanceof Player) {
+                    entity.kill();
+                } else entity.remove(Entity.RemovalReason.KILLED);
             }
         }
     }
-    private void transformMob(World world, BlockPos pos, Pair<EntityType<Entity>, EntityType<?>> pair, int numOfEntityTwo) {
-        List<Entity> purifiable = world.getEntitiesWithinAABB(pair.getFirst(), Ritual.getDefaultBounds(pos), a -> true);
+    private void transformMob(Level world, BlockPos pos, Pair<EntityType<Entity>, EntityType<?>> pair, int numOfEntityTwo) {
+        List<Entity> purifiable = world.getEntities(pair.getFirst(), Ritual.getDefaultBounds(pos), a -> true);
 
-        if (!purifiable.isEmpty() && !world.isRemote)
-            world.playSound(null, pos, SoundEvents.ENTITY_ZOMBIE_VILLAGER_CURE, SoundCategory.PLAYERS, 1.0f, 1.0f);
-        if (!world.isRemote) for (Entity entity : purifiable) {
-            BlockPos pos1 = entity.getPosition();
-            if (entity instanceof ZombieVillagerEntity && pair.getSecond() == EntityType.VILLAGER) {
-                ((ZombieVillagerEntity) entity).cureZombie((ServerWorld) world);
+        if (!purifiable.isEmpty() && !world.isClientSide)
+            world.playSound(null, pos, SoundEvents.ZOMBIE_VILLAGER_CURE, SoundSource.PLAYERS, 1.0f, 1.0f);
+        if (!world.isClientSide) for (Entity entity : purifiable) {
+            BlockPos pos1 = entity.getOnPos();
+            if (entity instanceof ZombieVillager zombie && pair.getSecond() == EntityType.VILLAGER) {
+                zombie.finishConversion((ServerLevel) world);
                 for (int i = 1; i < numOfEntityTwo; i++) {
-                    world.addEntity(entity);
-                    entity.setPosition(pos1.getX(), pos1.getY(), pos1.getZ());
+                    world.addFreshEntity(entity);
+                    entity.setPos(pos1.getX(), pos1.getY(), pos1.getZ());
                 }
                 return;
             } else {
-                if (entity instanceof PlayerEntity) {
-                    entity.onKillCommand();
-                } else entity.remove();
+                if (entity instanceof Player) {
+                    entity.kill();
+                } else entity.remove(Entity.RemovalReason.KILLED);
 
                 Entity newEntity = pair.getSecond().create(world);
 
-                if (newEntity instanceof MobEntity) {
-                    ((MobEntity) newEntity).onInitialSpawn((ServerWorld) world, world.getDifficultyForLocation(pos),
-                            SpawnReason.MOB_SUMMONED, null, null);
+                if (newEntity instanceof Mob mob) {
+                    mob.finalizeSpawn((ServerLevel) world, world.getCurrentDifficultyAt(pos),
+                            MobSpawnType.MOB_SUMMONED, null, null);
                 }
                 for (int i = 0; i < numOfEntityTwo; i++) {
-                    world.addEntity(newEntity);
-                    newEntity.setPosition(pos1.getX(), pos1.getY(), pos1.getZ());
+                    world.addFreshEntity(newEntity);
+                    newEntity.setPos(pos1.getX(), pos1.getY(), pos1.getZ());
                 }
             }
         }

@@ -4,22 +4,14 @@ import com.google.gson.JsonObject;
 import dev.infernal_coding.eidolonrecipes.rituals.IRitualResultSerializer;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualManager;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualRecipeWrapper;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
+import elucent.eidolon.ritual.Ritual;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.entity.item.ItemEntity;
-import net.minecraft.item.EnchantedBookItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.nbt.ListNBT;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.potion.Potion;
-import net.minecraft.potion.PotionUtils;
-import net.minecraft.potion.Potions;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 import static dev.infernal_coding.eidolonrecipes.util.ItemUtil.*;
 
@@ -64,9 +56,9 @@ public class ItemSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public RitualManager.ResultColorPair getColorAndResult(PacketBuffer buffer, int color, boolean isColorPreset, String type) {
+    public RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type) {
 
-        ItemStack itemStack = buffer.readItemStack();
+        ItemStack itemStack = buffer.readItem();
         if (!itemStack.isEmpty()) {
             return new RitualManager.ResultColorPair(color, 1, itemStack, type);
         }
@@ -74,25 +66,25 @@ public class ItemSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public void writeResult(RitualRecipeWrapper.Result result, PacketBuffer buffer) {
-        buffer.writeString(result.getVariant());
+    public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
+        buffer.writeUtf(result.getVariant());
 
 
         if (result.getToCreate() instanceof ItemStack) {
             ItemStack itemStack = (ItemStack) result.getToCreate();
-            buffer.writeItemStack(itemStack);
+            buffer.writeItemStack(itemStack, false);
         }
     }
 
     @Override
-    public void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public void startRitual(Ritual ritual, RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         if (result.getToCreate() instanceof ItemStack) {
             createItem(result.getToCreate(), world, pos);
         }
     }
 
     @Override
-    public boolean onRitualTick(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public boolean onRitualTick(RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         return false;
     }
 
@@ -106,11 +98,11 @@ public class ItemSerializer implements IRitualResultSerializer {
         return (ItemStack) result.getToCreate();
     }
 
-    private void createItem(Object item, World world, BlockPos pos) {
+    private void createItem(Object item, Level world, BlockPos pos) {
         ItemStack itemToMake = (ItemStack) item;
 
-        if (!world.isRemote) {
-            world.addEntity(new ItemEntity(world, (double) pos.getX() + 0.5,
+        if (!world.isClientSide) {
+            world.addFreshEntity(new ItemEntity(world, (double) pos.getX() + 0.5,
                     (double) pos.getY() + 2.5, (double) pos.getZ() + 0.5, itemToMake.copy()));
         }
     }

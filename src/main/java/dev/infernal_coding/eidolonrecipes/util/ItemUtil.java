@@ -4,46 +4,53 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import dev.infernal_coding.eidolonrecipes.ModRoot;
-import net.minecraft.block.Block;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentData;
-import net.minecraft.entity.EntityType;
-import net.minecraft.item.EnchantedBookItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.item.crafting.Ingredient;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.potion.PotionUtils;
-import net.minecraft.tags.ITag;
-import net.minecraft.tags.TagCollectionManager;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.Registry;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.EnchantedBookItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentInstance;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.ForgeRegistry;
+import net.minecraftforge.registries.tags.ITag;
 
 public class ItemUtil {
 
+
+    public static ResourceLocation getItemName(Item item) {
+        return ForgeRegistries.ITEMS.getKey(item);
+    }
+
+    public static ResourceLocation getBlockName(Block block) {
+        return ForgeRegistries.BLOCKS.getKey(block);
+    }
     public static JsonObject serializeRecipeIngredient(Object ingredient) {
         JsonObject json = new JsonObject();
         if (ingredient instanceof ItemStack) {
             ItemStack item = (ItemStack) ingredient;
-            json.addProperty("item", item.getItem().getRegistryName().toString());
+            json.addProperty("item", getItemName(item.getItem()).toString());
             if (item.getCount() > 1) {
                 json.addProperty("count", item.getCount());
             }
             if (item.hasTag()) {
                 json.addProperty("nbt", item.getTag().toString());
             }
-        } else if (ingredient instanceof Item) {
-            json.addProperty("item", ((Item) ingredient).getRegistryName().toString());
-        } else if (ingredient instanceof Block) {
-            json.addProperty("item", ((Block) ingredient).asItem().getRegistryName().toString());
-        } else if (ingredient instanceof ITag) {
-            json.addProperty("tag", TagCollectionManager.getManager().getItemTags().getDirectIdFromTag((ITag<Item>) ingredient).toString());
-        } else if (ingredient instanceof Ingredient) {
-            JsonElement serialized = ((Ingredient) ingredient).serialize();
+        } else if (ingredient instanceof Item item) {
+            json.addProperty("item", getItemName(item).toString());
+        } else if (ingredient instanceof Block block) {
+            json.addProperty("item", getBlockName(block).toString());
+        } else if (ingredient instanceof TagKey<?> tagKey) {
+            json.addProperty("tag", tagKey.location().toString());
+        } else if (ingredient instanceof Ingredient ing) {
+            JsonElement serialized = ing.toJson();
             if (serialized.isJsonArray()) {
                 json.add("items", serialized);
             } else {
@@ -58,7 +65,7 @@ public class ItemUtil {
     }
 
     public static Ingredient deserializeRecipeIngredient(JsonElement json) {
-        return Ingredient.deserialize(json);
+        return Ingredient.fromJson(json);
 
         /*if (json.has("tag")) {
             return TagCollectionManager.getManager().getItemTags().get(new ResourceLocation(json.get("tag").getAsString()));
@@ -75,36 +82,36 @@ public class ItemUtil {
         throw new JsonParseException("Recipe Ingredient must contain either a 'tag' or an 'item'");*/
     }
 
-    public static void writeRecipeIngredient(Object ingredient, PacketBuffer buffer) {
+    public static void writeRecipeIngredient(Object ingredient, FriendlyByteBuf buffer) {
         if (ingredient instanceof ItemStack) {
             buffer.writeVarInt(1);
-            buffer.writeItemStack((ItemStack) ingredient);
-        } else if (ingredient instanceof Item) {
+            buffer.writeItemStack((ItemStack) ingredient, false);
+        } else if (ingredient instanceof Item item) {
             buffer.writeVarInt(2);
-            buffer.writeResourceLocation(((Item) ingredient).getRegistryName());
-        } else if (ingredient instanceof Block) {
+            buffer.writeResourceLocation(getItemName(item));
+        } else if (ingredient instanceof Block block) {
             buffer.writeVarInt(3);
-            buffer.writeResourceLocation(((Block) ingredient).getRegistryName());
-        } else if (ingredient instanceof ITag) {
+            buffer.writeResourceLocation(getBlockName(block));
+        } else if (ingredient instanceof TagKey<?> tag) {
             buffer.writeVarInt(4);
-            buffer.writeResourceLocation(TagCollectionManager.getManager().getItemTags().getValidatedIdFromTag((ITag<Item>) ingredient));
+            buffer.writeResourceLocation(tag.location());
         } else if (ingredient instanceof Ingredient) {
             buffer.writeVarInt(5);
             Ingredient ing = (Ingredient) ingredient;
-            ing.write(buffer);
+            ing.toNetwork(buffer);
         } else {
             ModRoot.LOGGER.warn("Unknown step match for writing to buffer {}", ingredient);
         }
     }
 
-    public static Ingredient readRecipeIngredient(PacketBuffer buffer) {
-        return Ingredient.read(buffer);
+    public static Ingredient readRecipeIngredient(FriendlyByteBuf buffer) {
+        return Ingredient.fromNetwork(buffer);
     }
 
     public static boolean matchesIngredient(Object match, ItemStack input, boolean matchCount) {
         if (match instanceof ItemStack) {
             ItemStack stack = (ItemStack) match;
-            if (!matchCount ? ItemStack.areItemStacksEqual(stack, input) : ItemStack.areItemsEqual(stack, input) && ItemStack.areItemStackTagsEqual(stack, input) && input.getCount() >= stack.getCount()) {
+            if (!matchCount ? ItemStack.matches(stack, input) : ItemStack.isSameItemSameTags(stack, input) && input.getCount() >= stack.getCount()) {
                 return true;
             }
         } else if (match instanceof Item) {
@@ -115,11 +122,11 @@ public class ItemUtil {
             if (((Block) match).asItem() == input.getItem()) {
                 return true;
             }
-        } else if (match instanceof ITag && ((ITag) match).contains(input.getItem())) {
+        } else if (match instanceof ITag<?> && ((ITag) match).contains(input.getItem())) {
             return true;
         } else if (match instanceof Ingredient) {
             Ingredient ingredient = (Ingredient) match;
-            for (ItemStack stack : ingredient.getMatchingStacks()) {
+            for (ItemStack stack : ingredient.getItems()) {
                 if (matchesIngredient(stack, input, true)) {
                     return true;
                 }
@@ -142,9 +149,9 @@ public class ItemUtil {
             JsonPrimitive jsonPrimitive = (JsonPrimitive) json;
             ResourceLocation potionName = new ResourceLocation(jsonPrimitive.getAsString());
 
-            if (ForgeRegistries.POTION_TYPES.containsKey(potionName)) {
-                return PotionUtils.addPotionToItemStack(new ItemStack(Items.POTION),
-                        ForgeRegistries.POTION_TYPES.getValue(potionName));
+            if (ForgeRegistries.POTIONS.containsKey(potionName)) {
+                return PotionUtils.setPotion(new ItemStack(Items.POTION),
+                        ForgeRegistries.POTIONS.getValue(potionName));
             }
         }
         return ItemStack.EMPTY;
@@ -155,9 +162,9 @@ public class ItemUtil {
             JsonPrimitive jsonPrimitive = (JsonPrimitive) json;
             ResourceLocation potionName = new ResourceLocation(jsonPrimitive.getAsString());
 
-            if (ForgeRegistries.POTION_TYPES.containsKey(potionName)) {
-                return PotionUtils.addPotionToItemStack(new ItemStack(Items.SPLASH_POTION),
-                        ForgeRegistries.POTION_TYPES.getValue(potionName));
+            if (ForgeRegistries.POTIONS.containsKey(potionName)) {
+                return PotionUtils.setPotion(new ItemStack(Items.SPLASH_POTION),
+                        ForgeRegistries.POTIONS.getValue(potionName));
             }
         }
         return ItemStack.EMPTY;
@@ -168,9 +175,9 @@ public class ItemUtil {
             JsonPrimitive jsonPrimitive = (JsonPrimitive) json;
             ResourceLocation potionName = new ResourceLocation(jsonPrimitive.getAsString());
 
-            if (ForgeRegistries.POTION_TYPES.containsKey(potionName)) {
-                return PotionUtils.addPotionToItemStack(new ItemStack(Items.LINGERING_POTION),
-                        ForgeRegistries.POTION_TYPES.getValue(potionName));
+            if (ForgeRegistries.POTIONS.containsKey(potionName)) {
+                return PotionUtils.setPotion(new ItemStack(Items.LINGERING_POTION),
+                        ForgeRegistries.POTIONS.getValue(potionName));
             }
         }
         return ItemStack.EMPTY;
@@ -184,19 +191,17 @@ public class ItemUtil {
 
         if (ForgeRegistries.ENCHANTMENTS.containsKey(enchantmentName)) {
             Enchantment enchantment = ForgeRegistries.ENCHANTMENTS.getValue(enchantmentName);
-            EnchantedBookItem.addEnchantment(itemStack, new EnchantmentData(enchantment, enchantmentLevel));
+            EnchantedBookItem.addEnchantment(itemStack, new EnchantmentInstance(enchantment, enchantmentLevel));
             return itemStack;
         }
         return ItemStack.EMPTY;
     }
 
-    public static ITag<Item> getItemTagFromJson(JsonElement json) {
+    public static TagKey<Item> getItemTagFromJson(JsonElement json) {
 
         if (json instanceof JsonPrimitive) {
             JsonPrimitive jsonPrimitive = (JsonPrimitive) json;
-            return TagCollectionManager.getManager()
-                    .getItemTags()
-                    .get(new ResourceLocation(jsonPrimitive.getAsString()));
+            return TagKey.create(Registry.ITEM_REGISTRY, new ResourceLocation(jsonPrimitive.getAsString()));
         }
         return null;
     }
@@ -214,10 +219,10 @@ public class ItemUtil {
                 }
             }
 
-            if (!ForgeRegistries.ENTITIES.containsKey(new ResourceLocation(jsonPrimitive.getAsString()))) {
+            if (!ForgeRegistries.ENTITY_TYPES.containsKey(new ResourceLocation(jsonPrimitive.getAsString()))) {
                 return null;
             }
-            return ForgeRegistries.ENTITIES.getValue(new ResourceLocation(jsonPrimitive.getAsString()));
+            return ForgeRegistries.ENTITY_TYPES.getValue(new ResourceLocation(jsonPrimitive.getAsString()));
         }
         return null;
     }

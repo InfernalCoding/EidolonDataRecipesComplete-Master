@@ -5,29 +5,24 @@ import com.mojang.datafixers.util.Pair;
 import dev.infernal_coding.eidolonrecipes.rituals.IRitualResultSerializer;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualManager;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualRecipeWrapper;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
 import elucent.eidolon.Registry;
 import elucent.eidolon.network.CrystallizeEffectPacket;
 import elucent.eidolon.network.Networking;
 import elucent.eidolon.ritual.Ritual;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.item.ItemEntity;
-import net.minecraft.entity.merchant.villager.VillagerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.concurrent.ThreadTaskExecutor;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraft.world.chunk.Chunk;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -93,10 +88,10 @@ public class AbsorbSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public RitualManager.ResultColorPair getColorAndResult(PacketBuffer buffer, int color, boolean isColorPreset, String type) {
-        String entityName = buffer.readString();
+    public RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type) {
+        String entityName = buffer.readUtf();
         EntityType<?> entity = getEntityType(entityName);
-        ItemStack resultItem = buffer.readItemStack();
+        ItemStack resultItem = buffer.readItem();
         int itemAddModifier = 1;
 
         try {
@@ -120,27 +115,25 @@ public class AbsorbSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public void writeResult(RitualRecipeWrapper.Result result, PacketBuffer buffer) {
-        buffer.writeString(result.getVariant());
+    public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
+        buffer.writeUtf(result.getVariant());
 
         if (result.getToCreate() instanceof Pair) {
             Pair<?, ItemStack> entityAbsorbPair = (Pair<?, ItemStack>) result.getToCreate();
 
-            if (entityAbsorbPair.getFirst() instanceof Class<?>) {
-                Class<?> entity1Class = (Class<?>) entityAbsorbPair.getFirst();
+            if (entityAbsorbPair.getFirst() instanceof Class<?> entity1Class) {
                 writeClassName(entity1Class.getName(), buffer);
-            } else if (entityAbsorbPair.getFirst() instanceof EntityType) {
-                EntityType<?> entity1Type = (EntityType<?>) entityAbsorbPair.getFirst();
-                buffer.writeResourceLocation(Objects.requireNonNull(entity1Type.getRegistryName()));
+            } else if (entityAbsorbPair.getFirst() instanceof EntityType<?> entity1Type) {
+                buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(entity1Type)));
             }
             ItemStack resultItem = entityAbsorbPair.getSecond();
-            buffer.writeItemStack(resultItem);
+            buffer.writeItemStack(resultItem, false);
             buffer.writeInt(result.getCount());
         }
     }
 
     @Override
-    public void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public void startRitual(Ritual ritual, RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         if (result.getToCreate() instanceof Pair) {
 
             Pair<?, ItemStack> pairCheck = (Pair<?, ItemStack>) result.getToCreate();
@@ -158,7 +151,7 @@ public class AbsorbSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public boolean onRitualTick(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public boolean onRitualTick(RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         return false;
     }
 
@@ -176,24 +169,24 @@ public class AbsorbSerializer implements IRitualResultSerializer {
         return ItemStack.EMPTY;
     }
 
-    public void absorbEntities(World world, BlockPos pos, Class<LivingEntity> entityClass, ItemStack resultItem, int addModifier) {
+    public void absorbEntities(Level world, BlockPos pos, Class<LivingEntity> entityClass, ItemStack resultItem, int addModifier) {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-        List<LivingEntity> entities = world.getEntitiesWithinAABB(entityClass, getDefaultBounds(pos), null);
+        List<LivingEntity> entities = world.getEntitiesOfClass(entityClass, getDefaultBounds(pos), s -> true);
 
         for (LivingEntity e : entities) {
             scheduler.execute(() -> {
 
-                if (getDefaultBounds(pos).contains(e.getPosX(), e.getPosY(), e.getPosZ())) {
-                    e.attackEntityFrom(Registry.RITUAL_DAMAGE, e.getMaxHealth() * 1000);
-                    if (!world.isRemote) {
-                        Networking.sendToTracking(world, e.getPosition(), new CrystallizeEffectPacket(e.getPosition()));
-                        int addedModifier = addModifier > 0 ? world.rand.nextInt(addModifier) : 1;
+                if (getDefaultBounds(pos).contains(e.getX(), e.getY(), e.getZ())) {
+                    e.hurt(Registry.RITUAL_DAMAGE, e.getMaxHealth() * 1000);
+                    if (!world.isClientSide) {
+                        Networking.sendToTracking(world, e.getOnPos(), new CrystallizeEffectPacket(e.getOnPos()));
+                        int addedModifier = addModifier > 0 ? world.random.nextInt(addModifier) : 1;
 
                         for (int i = 0; i < resultItem.getCount(); i++) {
                             ItemStack itemStack = resultItem.copy();
                             itemStack.setCount(addedModifier);
 
-                            world.addEntity(new ItemEntity(world, e.getPosX(), e.getPosY(), e.getPosZ(),
+                            world.addFreshEntity(new ItemEntity(world, e.getX(), e.getY(), e.getZ(),
                                     itemStack));
                         }
                     }
@@ -201,29 +194,29 @@ public class AbsorbSerializer implements IRitualResultSerializer {
             });
 
             try {
-                Thread.sleep(world.rand.nextInt(2000) + 1000);
+                Thread.sleep(world.random.nextInt(2000) + 1000);
             } catch (Exception ignored) {}
         }
     }
 
-    private void absorbEntityType(World world, BlockPos pos, EntityType<LivingEntity> entityType, ItemStack resultItem, int addModifier) {
-        List<LivingEntity> entities = world.getEntitiesWithinAABB(entityType, getDefaultBounds(pos), a -> true);
+    private void absorbEntityType(Level world, BlockPos pos, EntityType<LivingEntity> entityType, ItemStack resultItem, int addModifier) {
+        List<LivingEntity> entities = world.getEntities(entityType, getDefaultBounds(pos), a -> true);
 
         for (LivingEntity e : entities) {
-            e.attackEntityFrom(Registry.RITUAL_DAMAGE, e.getMaxHealth() * 1000);
-            if (!world.isRemote) {
-                Networking.sendToTracking(world, e.getPosition(), new CrystallizeEffectPacket(e.getPosition()));
-                int addedModifier = addModifier > 0 ? world.rand.nextInt(addModifier) : 1;
+            e.hurt(Registry.RITUAL_DAMAGE, e.getMaxHealth() * 1000);
+            if (!world.isClientSide) {
+                Networking.sendToTracking(world, e.getOnPos(), new CrystallizeEffectPacket(e.getOnPos()));
+                int addedModifier = addModifier > 0 ? world.random.nextInt(addModifier) : 1;
 
                 for (int i = 0; i < resultItem.getCount(); i++) {
                     ItemStack itemStack = resultItem.copy();
                     itemStack.setCount(addedModifier);
 
-                    world.addEntity(new ItemEntity(world, e.getPosX(), e.getPosY(), e.getPosZ(),
+                    world.addFreshEntity(new ItemEntity(world, e.getX(), e.getY(), e.getZ(),
                             itemStack));
                 }
                 try {
-                    Thread.sleep(world.rand.nextInt(2000) + 1000);
+                    Thread.sleep(world.random.nextInt(2000) + 1000);
                 } catch (Exception ignored) {}
             }
         }

@@ -4,19 +4,19 @@ import com.google.gson.JsonObject;
 import dev.infernal_coding.eidolonrecipes.rituals.IRitualResultSerializer;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualManager;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualRecipeWrapper;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
 import elucent.eidolon.ritual.Ritual;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.entity.player.ServerPlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.network.play.server.SUpdateTimePacket;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.GameRules;
-import net.minecraft.world.World;
-import net.minecraft.world.server.ServerWorld;
-import net.minecraft.world.storage.ServerWorldInfo;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ServerLevelData;
 
 public class TimeSerializer implements IRitualResultSerializer {
     public static final String ID = "time";
@@ -34,7 +34,7 @@ public class TimeSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public RitualManager.ResultColorPair getColorAndResult(PacketBuffer buffer, int color, boolean isColorPreset, String type) {
+    public RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type) {
         Boolean isForDay = buffer.readBoolean();
 
         if (color > 0 && !isColorPreset) {
@@ -46,15 +46,15 @@ public class TimeSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public void writeResult(RitualRecipeWrapper.Result result, PacketBuffer buffer) {
+    public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
         buffer.writeBoolean((Boolean) result.getToCreate());
     }
 
     @Override
-    public void startRitual(RitualRecipeWrapper.Result result, World world, BlockPos pos) {}
+    public void startRitual(Ritual ritual, RitualRecipeWrapper.Result result, Level world, BlockPos pos) {}
 
     @Override
-    public boolean onRitualTick(RitualRecipeWrapper.Result result, World world, BlockPos pos) {
+    public boolean onRitualTick(RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         boolean isDay = (Boolean) result.getToCreate();
 
         if (isDay) {
@@ -63,12 +63,12 @@ public class TimeSerializer implements IRitualResultSerializer {
         return makeNight(world);
     }
 
-    public boolean makeDay(World world) {
+    public boolean makeDay(Level world) {
         if (world.getDayTime() % 24000 < 1000 || world.getDayTime() % 24000 >= 12000) {
-            if (!world.isRemote) {
-                ((ServerWorldInfo) world.getWorldInfo()).setDayTime(world.getDayTime() + 100);
-                for (ServerPlayerEntity player : ((ServerWorld) world).getPlayers()) {
-                    player.connection.sendPacket(new SUpdateTimePacket(world.getGameTime(), world.getDayTime(), world.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE)));
+            if (!world.isClientSide) {
+                ((ServerLevelData) world.getLevelData()).setDayTime(world.getDayTime() + 100);
+                for (ServerPlayer player : ((ServerLevel) world).getPlayers(a -> true)) {
+                    player.connection.send(new ClientboundSetTimePacket(world.getGameTime(), world.getDayTime(), world.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)));
                 }
             }
             return true;
@@ -76,12 +76,12 @@ public class TimeSerializer implements IRitualResultSerializer {
         return false;
     }
 
-    public boolean makeNight(World world) {
+    public boolean makeNight(Level world) {
         if (world.getDayTime() % 24000 < 13000 && world.getDayTime() % 24000 >= 0) {
-            if (!world.isRemote) {
-                ((ServerWorldInfo) world.getWorldInfo()).setDayTime(world.getDayTime() + 100);
-                for (ServerPlayerEntity player : ((ServerWorld) world).getPlayers()) {
-                    player.connection.sendPacket(new SUpdateTimePacket(world.getGameTime(), world.getDayTime(), world.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE)));
+            if (!world.isClientSide) {
+                ((ServerLevelData) world.getLevelData()).setDayTime(world.getDayTime() + 100);
+                for (ServerPlayer player : ((ServerLevel) world).getPlayers(s -> true)) {
+                    player.connection.send(new ClientboundSetTimePacket(world.getGameTime(), world.getDayTime(), world.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)));
                 }
             }
             return true;

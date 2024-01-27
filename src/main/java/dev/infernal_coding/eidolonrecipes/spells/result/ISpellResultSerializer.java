@@ -2,7 +2,7 @@ package dev.infernal_coding.eidolonrecipes.spells.result;
 
 import com.google.gson.JsonObject;
 import dev.infernal_coding.eidolonrecipes.data.ISerializer;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
 
 public interface ISpellResultSerializer<T extends ISpellResult> extends ISerializer<JsonObject, T> {
 

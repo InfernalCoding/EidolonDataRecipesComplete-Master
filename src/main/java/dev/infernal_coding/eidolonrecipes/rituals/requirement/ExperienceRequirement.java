@@ -3,9 +3,9 @@ package dev.infernal_coding.eidolonrecipes.rituals.requirement;
 import elucent.eidolon.ritual.IRequirement;
 import elucent.eidolon.ritual.RequirementInfo;
 import elucent.eidolon.ritual.Ritual;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 
@@ -15,9 +15,9 @@ public class ExperienceRequirement implements IRequirement {
         this.experienceLevel = experienceLevel;
     }
     @Override
-    public RequirementInfo isMet(Ritual ritual, World world, BlockPos blockPos) {
-        List<PlayerEntity> players = world.getEntitiesWithinAABB(PlayerEntity.class, ritual.getSearchBounds(blockPos));
-        for (PlayerEntity player : players) {
+    public RequirementInfo isMet(Ritual ritual, Level world, BlockPos blockPos) {
+        List<Player> players = world.getEntitiesOfClass(Player.class, ritual.getSearchBounds(blockPos));
+        for (Player player : players) {
             if (player.experienceLevel >= experienceLevel) {
                 return RequirementInfo.TRUE;
             }
@@ -26,11 +26,11 @@ public class ExperienceRequirement implements IRequirement {
     }
 
     @Override
-    public void whenMet(Ritual ritual, World world, BlockPos pos, RequirementInfo info) {
-        List<PlayerEntity> players = world.getEntitiesWithinAABB(PlayerEntity.class, ritual.getSearchBounds(pos));
-        for (PlayerEntity player : players) {
+    public void whenMet(Ritual ritual, Level world, BlockPos pos, RequirementInfo info) {
+        List<Player> players = world.getEntitiesOfClass(Player.class, ritual.getSearchBounds(pos));
+        for (Player player : players) {
             if (player.experienceLevel >= experienceLevel) {
-                player.addExperienceLevel(-experienceLevel);
+                player.giveExperienceLevels(-experienceLevel);
             }
         }
     }

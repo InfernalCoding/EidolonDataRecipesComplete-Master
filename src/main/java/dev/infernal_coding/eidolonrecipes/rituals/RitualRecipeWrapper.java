@@ -7,28 +7,20 @@ import dev.infernal_coding.eidolonrecipes.registry.RecipeTypes;
 import dev.infernal_coding.eidolonrecipes.rituals.requirement.AdvancementRequirement;
 import dev.infernal_coding.eidolonrecipes.rituals.requirement.DimensionRequirement;
 import dev.infernal_coding.eidolonrecipes.rituals.requirement.ExperienceRequirement;
-import dev.infernal_coding.eidolonrecipes.util.JsonUtil;
+import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
 import elucent.eidolon.ritual.*;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.item.EnchantedBookItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.item.crafting.IRecipeSerializer;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.nbt.ListNBT;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.potion.Potion;
-import net.minecraft.potion.PotionUtils;
-import net.minecraft.potion.Potions;
-import net.minecraft.tags.ITag;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
-import net.minecraftforge.registries.ForgeRegistryEntry;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.Container;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Field;
@@ -40,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static dev.infernal_coding.eidolonrecipes.rituals.RitualManager.*;
 
 
-public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
+public class RitualRecipeWrapper extends Ritual implements Recipe<Container> {
 
     public final String title, description;
     final ArrayList<IRequirement> ritualRequirements, extraRequirements;
@@ -87,22 +79,22 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
     }
 
     @Override
-    public boolean matches(IInventory inv, World worldIn) {
+    public boolean matches(Container inv, Level worldIn) {
         return false;
     }
 
     @Override
-    public ItemStack getCraftingResult(IInventory inv) {
+    public ItemStack assemble(Container inv) {
         return ItemStack.EMPTY;
     }
 
     @Override
-    public boolean canFit(int width, int height) {
+    public boolean canCraftInDimensions(int width, int height) {
         return false;
     }
 
     @Override
-    public ItemStack getRecipeOutput() {
+    public ItemStack getResultItem() {
         return ItemStack.EMPTY;
     }
 
@@ -112,26 +104,26 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
     }
 
     @Override
-    public IRecipeSerializer<?> getSerializer() {
+    public RecipeSerializer<?> getSerializer() {
         return RecipeTypes.RITUAL_SERIALIZER.get();
     }
 
     @Override
-    public IRecipeType<?> getType() {
-        return RecipeTypes.RITUAL;
+    public RecipeType<?> getType() {
+        return RecipeTypes.RITUAL.get();
     }
 
-    public static class Serializer extends ForgeRegistryEntry<IRecipeSerializer<?>> implements IRecipeSerializer<RitualRecipeWrapper> {
+    public static class Serializer implements RecipeSerializer<RitualRecipeWrapper> {
         private static final Field healthField = ObfuscationReflectionHelper.findField(HealthRequirement.class,
                 "health");
 
         @Override
-        public RitualRecipeWrapper read(ResourceLocation recipeId, JsonObject json) {
-            JsonObject jsonRequirements = JSONUtils.getJsonObject(json, "requirements", null);
-            JsonArray jsonResults = JSONUtils.getJsonArray(json, "results", null);
-            JsonObject jsonBrazier = JSONUtils.getJsonObject(jsonRequirements, "brazier", null);
-            JsonArray jsonItems = JSONUtils.getJsonArray(jsonRequirements, "items", null);
-            JsonArray jsonExtras = JSONUtils.getJsonArray(json, "extras", null);
+        public RitualRecipeWrapper fromJson(ResourceLocation recipeId, JsonObject json) {
+            JsonObject jsonRequirements = JSONUtils.getJsonObject(json, "requirements");
+            JsonArray jsonResults = JSONUtils.getJSONArray(json, "results");
+            JsonObject jsonBrazier = JSONUtils.getJsonObject(jsonRequirements, "brazier");
+            JsonArray jsonItems = JSONUtils.getJSONArray(jsonRequirements, "items");
+            JsonArray jsonExtras = JSONUtils.getJSONArray(json, "extras");
 
             ArrayList<IRequirement> requirements = new ArrayList<>();
             ArrayList<IRequirement> extraRequirements = new ArrayList<>();
@@ -159,11 +151,11 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
                 jsonExtras.forEach(req -> {
                     JsonObject requirement = (JsonObject) req;
                     Optional<ResourceLocation> advancement =
-                            JsonUtil.getOptionalResourceLocation(requirement, "advancement");
+                            JSONUtils.getOptionalResourceLocation(requirement, "advancement");
                     Optional<ResourceLocation> dimension =
-                            JsonUtil.getOptionalResourceLocation(requirement, "dimension");
+                            JSONUtils.getOptionalResourceLocation(requirement, "dimension");
                     Optional<Integer> experience =
-                            JsonUtil.getOptionalInt(requirement, "xpLevels");
+                            JSONUtils.getOptionalInt(requirement, "xpLevels");
                     advancement.ifPresent(a -> extraRequirements.add(new AdvancementRequirement(a)));
                     dimension.ifPresent(a -> extraRequirements.add(new DimensionRequirement(a)));
                     experience.ifPresent(a -> extraRequirements.add(new ExperienceRequirement(a)));
@@ -211,7 +203,7 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
 
         @Nullable
         @Override
-        public RitualRecipeWrapper read(ResourceLocation recipeId, PacketBuffer buffer) {
+        public RitualRecipeWrapper fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
             int color;
             boolean isColorPreset;
             boolean usesNecro = false;
@@ -225,11 +217,11 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
             } catch (Exception ignored) {}
 
             try {
-                title = buffer.readString();
+                title = buffer.readUtf();
             } catch (Exception ignored) {}
 
             try {
-                title = buffer.readString();
+                title = buffer.readUtf();
             } catch (Exception ignored) {}
 
             Pair<Integer, Boolean> colorDetails = RitualManager.getColor(buffer);
@@ -266,7 +258,7 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
             length = buffer.readVarInt();
 
             for (int i = 0; i < length; i++) {
-                String type = buffer.readString();
+                String type = buffer.readUtf();
 
                 if (RESULTS.get(type) != null) {
 
@@ -282,15 +274,14 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
         }
 
         @Override
-        public void write(PacketBuffer buffer, RitualRecipeWrapper recipe) {
+        public void toNetwork(FriendlyByteBuf buffer, RitualRecipeWrapper recipe) {
 
             buffer.writeResourceLocation(recipe.getSymbol());
             buffer.writeInt(recipe.getColor());
-            buffer.writeString(recipe.title);
-            buffer.writeString(recipe.description);
+            buffer.writeUtf(recipe.title);
+            buffer.writeUtf(recipe.description);
 
-            if (recipe.brazierItemRequirement instanceof ITag) {
-                ITag<?> brazierItemTag = (ITag<?>) recipe.brazierItemRequirement;
+            if (recipe.brazierItemRequirement instanceof TagKey<?> brazierItemTag) {
                 buffer.writeResourceLocation(new ResourceLocation(brazierItemTag.toString()));
             } else {
                 ItemStack itemRequired = (ItemStack) recipe.brazierItemRequirement;
@@ -320,13 +311,12 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
 
                 if (requirement instanceof ItemRequirement) {
                     ItemRequirement itemRequirement = (ItemRequirement) requirement;
-                    if (itemRequirement.getMatch() instanceof ITag) {
-                        ITag<?> tag = (ITag<?>) itemRequirement.getMatch();
-                        buffer.writeString("tag");
+                    if (itemRequirement.getMatch() instanceof TagKey<?> tag) {
+                        buffer.writeUtf("tag");
                         buffer.writeResourceLocation(new ResourceLocation(tag.toString()));
                     } else if (itemRequirement.getMatch() instanceof ItemStack) {
-                        buffer.writeString("item");
-                        buffer.writeItemStack((ItemStack) itemRequirement.getMatch());
+                        buffer.writeUtf("item");
+                        buffer.writeItemStack((ItemStack) itemRequirement.getMatch(), false);
                     }
                 }
                 index++;
@@ -340,13 +330,13 @@ public class RitualRecipeWrapper extends Ritual implements IRecipe<IInventory> {
     }
 
     @Override
-    public RitualResult start(World world, BlockPos pos) {
-        results.forEach(result -> RESULTS.get(result.variant).startRitual(result, world, pos));
+    public RitualResult start(Level world, BlockPos pos) {
+        results.forEach(result -> RESULTS.get(result.variant).startRitual(this, result, world, pos));
         return results.stream().anyMatch(Result::runsOnTick) ? RitualResult.PASS : RitualResult.TERMINATE;
     }
 
     @Override
-    public RitualResult tick(World world, BlockPos pos) {
+    public RitualResult tick(Level world, BlockPos pos) {
 
         for (Result result : results) {
             boolean continueRitual = RESULTS.get(result.variant).onRitualTick(result, world, pos);
