@@ -1,0 +1,18 @@
+{
+  "type": "eidolon:crucible",
+  "result": {
+    "item": "minecraft:rotten_flesh"
+  },
+  "steps": [
+    {
+      "ingredients": [
+        {
+          "item": "minecraft:mutton"
+        },
+        {
+          "tag": "forge:mushrooms"
+        }
+      ]
+    }
+  ]
+}

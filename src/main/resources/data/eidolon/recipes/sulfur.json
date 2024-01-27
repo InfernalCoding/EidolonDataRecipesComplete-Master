@@ -1,0 +1,20 @@
+{
+  "type": "eidolon:crucible",
+  "category": "reagents",
+  "result": {
+    "item": "eidolon:sulfur",
+    "count": 2
+  },
+  "steps": [
+    {
+      "ingredients": [
+        {
+          "item": "minecraft:coal"
+        },
+        {
+          "item": "eidolon:enchanted_ash"
+        }
+      ]
+    }
+  ]
+}

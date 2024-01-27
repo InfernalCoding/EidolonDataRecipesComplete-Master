@@ -1,0 +1,33 @@
+{
+  "type": "eidolon:crucible",
+  "result": {
+    "item": "minecraft:glistering_melon_slice"
+  },
+  "steps": [
+    {
+      "ingredients": [
+        {
+          "tag": "forge:nuggets/gold"
+        },
+        {
+          "tag": "forge:nuggets/gold"
+        }
+      ]
+    },
+    {
+      "ingredients": [
+        {
+          "item": "eidolon:enchanted_ash"
+        }
+      ],
+      "stirs": 2
+    },
+    {
+      "ingredients": [
+        {
+          "item": "minecraft:melon_slice"
+        }
+      ]
+    }
+  ]
+}

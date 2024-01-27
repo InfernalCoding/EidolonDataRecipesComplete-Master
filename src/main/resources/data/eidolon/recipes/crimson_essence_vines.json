@@ -1,0 +1,27 @@
+{
+  "type": "eidolon:crucible",
+  "result": {
+    "item": "eidolon:crimson_essence",
+    "count": 2
+  },
+  "steps": [
+    {
+      "ingredients": [
+        {
+          "item": "minecraft:weeping_vines"
+        },
+        {
+          "item": "minecraft:nether_wart"
+        }
+      ]
+    },
+    {
+      "ingredients": [
+        {
+          "tag": "forge:dusts/sulfur"
+        }
+      ],
+      "stirs": 1
+    }
+  ]
+}

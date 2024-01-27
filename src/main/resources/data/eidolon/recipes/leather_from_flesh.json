@@ -1,0 +1,24 @@
+{
+  "type": "eidolon:crucible",
+  "result": {
+    "item": "minecraft:leather"
+  },
+  "steps": [
+    {
+      "ingredients": [
+        {
+          "item": "eidolon:enchanted_ash",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "ingredients": [
+        {
+          "item": "minecraft:rotten_flesh"
+        }
+      ],
+      "stirs": 2
+    }
+  ]
+}
