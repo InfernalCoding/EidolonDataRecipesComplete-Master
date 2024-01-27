@@ -1,0 +1,42 @@
+{
+  "type": "eidolon:ritual",
+  "symbol": "eidolon:particle/summon_ritual",
+  "title": "eidolon.codex.page.summon_ritual.4.title",
+  "color": [
+    255, 121, 94, 255
+  ],
+
+  "requirements": {
+    "brazier": {
+      "type": "item",
+      "item": "minecraft:charcoal"
+    },
+
+
+    "items": [
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      },
+      {
+        "focused": true,
+        "type": "item",
+        "item": "minecraft:sand"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "minecraft:rotten_flesh"
+      }
+    ]
+  },
+
+  "results": [
+    {
+      "type": "summon",
+      "entity": "minecraft:husk"
+    }
+  ]
+
+}

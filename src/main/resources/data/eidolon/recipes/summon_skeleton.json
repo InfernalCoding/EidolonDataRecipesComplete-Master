@@ -1,0 +1,41 @@
+{
+  "type": "eidolon:ritual",
+  "symbol": "eidolon:particle/summon_ritual",
+  "title": "eidolon.codex.page.summon_ritual.1.title",
+  "color": [
+    255, 121, 94, 255
+  ],
+
+  "requirements": {
+    "brazier": {
+      "type": "item",
+      "item": "minecraft:charcoal"
+    },
+
+    "items": [
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:bones"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      },
+      {
+        "focused": true,
+        "type": "tag",
+        "tag": "forge:bones"
+      }
+    ]
+  },
+
+  "results": [
+    {
+      "type": "summon",
+      "entity": "minecraft:skeleton"
+    }
+  ]
+
+}

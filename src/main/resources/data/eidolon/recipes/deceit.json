@@ -1,0 +1,51 @@
+{
+  "type": "eidolon:ritual",
+  "symbol": "eidolon:particle/deceit_ritual",
+  "title": "eidolon.codex.page.deceit_ritual.title",
+  "description": "eidolon.codex.page.deceit_ritual",
+  "color": [
+    255, 64, 255, 96
+  ],
+
+  "requirements": {
+    "brazier": {
+      "type": "tag",
+      "tag": "forge:gems/emerald"
+    },
+
+    "items": [
+      {
+        "focused": false,
+        "type": "tag",
+        "tag": "forge:gems/emerald"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "minecraft:fermented_spider_eye"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "minecraft:red_mushroom"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      }
+    ]
+  },
+
+  "results": [
+    {
+      "type": "deceit"
+    }
+  ]
+
+}

@@ -1,0 +1,42 @@
+{
+  "type": "eidolon:ritual",
+  "symbol": "eidolon:particle/moonlight_ritual",
+  "title": "eidolon.codex.page.time_rituals.1.title",
+  "description": "eidolon.codex.page.time_rituals.1",
+  "color": [
+    255, 111, 75, 189
+  ],
+
+  "requirements": {
+    "brazier": {
+      "type": "tag",
+      "tag": "forge:dyes/black"
+    },
+
+    "items": [
+      {
+        "focused": false,
+        "type": "item",
+        "item": "minecraft:snowball"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "minecraft:spider_eye"
+      },
+      {
+        "focused": false,
+        "type": "item",
+        "item": "eidolon:soul_shard"
+      }
+    ]
+  },
+
+  "results": [
+    {
+      "type": "time",
+      "is_day": true
+    }
+  ]
+
+}
