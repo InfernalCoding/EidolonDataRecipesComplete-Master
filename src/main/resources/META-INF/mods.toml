@@ -35,6 +35,6 @@ This mod adds the ability to create custom recipes using Eidolon's crafting mech
 [[dependencies.eidolonrecipes]]
     modId="eidolon"
     mandatory=true
-    versionRange="[0.2.7,)"
+    versionRange="[0.2.7.8,)"
     ordering="NONE"
     side="BOTH"
