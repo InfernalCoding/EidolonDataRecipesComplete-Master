@@ -21,7 +21,7 @@ public class TitledRitualPage2 extends RitualPage {
 
     public TitledRitualPage2(String title, Ritual ritual, ItemStack center, RitualIngredient... inputs) {
         super(ritual, center, inputs);
-        this.title = I18n.get(title);
+        this.title = title;
     }
 
     @OnlyIn(Dist.CLIENT)
