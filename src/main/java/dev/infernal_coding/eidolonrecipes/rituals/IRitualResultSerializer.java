@@ -6,11 +6,13 @@ import elucent.eidolon.util.ColorUtil;
 import net.minecraft.core.BlockPos;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.AbstractIllager;
 import net.minecraft.world.entity.monster.AbstractSkeleton;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.raid.Raider;
@@ -40,7 +42,7 @@ public interface IRitualResultSerializer {
 
         if (className.equals("entity")) {
             if (resultType.equals("absorb") || resultType.equals("allure") || resultType.equals("repel")) {
-                return new RitualManager.ResultColorPair(color, count, LivingEntity.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, PathfinderMob.class, resultType);
             }
         }
 
@@ -71,7 +73,7 @@ public interface IRitualResultSerializer {
                 } else if (!isColorPreset) {
                     color += ColorUtil.packColor(100, 35, 80, 175);
                 }
-                return new RitualManager.ResultColorPair(color, count, PathfinderMob.class, resultType);
+                return new RitualManager.ResultColorPair(color, count, Monster.class, resultType);
             }
 
             case "zombie": {
@@ -119,42 +121,45 @@ public interface IRitualResultSerializer {
                 }
                 return new RitualManager.ResultColorPair(color, count, AbstractIllager.class, resultType);
             }
+
+            case "living": {
+                return new RitualManager.ResultColorPair(color, count, LivingEntity.class, resultType);
+            }
         }
-        return new RitualManager.ResultColorPair(color, count, LivingEntity.class, resultType);
+        return new RitualManager.ResultColorPair(color, count, Entity.class, resultType);
     }
 
     default void writeClassName(String className, FriendlyByteBuf buffer) {
         switch (className) {
-            case "Entity":
+            case "net.minecraft.world.entity.Entity":
                 buffer.writeUtf("entity");
                 break;
-            case "AnimalEntity":
+            case "net.minecraft.world.entity.animal.Animal":
                 buffer.writeUtf("animal");
                 break;
-            case "CreatureEntity":
+            case "net.minecraft.world.entity.PathfinderMob":
                 buffer.writeUtf("creature");
                 break;
-            case "MonsterEntity":
+            case "net.minecraft.world.entity.monster.Monster":
                 buffer.writeUtf("monster");
                 break;
-            case "ZombieEntity":
+            case "net.minecraft.world.entity.monster.Zombie":
                 buffer.writeUtf("zombie");
                 break;
-            case "AbstractVillagerEntity":
+            case "net.minecraft.world.entity.npc.AbstractVillager":
                 buffer.writeUtf("villager");
                 break;
-            case "AbstractSkeletonEntity":
+            case "net.minecraft.world.entity.monster.AbstractSkeleton":
                 buffer.writeUtf("skeleton");
                 break;
-            case "AbstractRaiderEntity":
+            case "net.minecraft.world.entity.raid.Raider":
                 buffer.writeUtf("raider");
                 break;
-            case "AbstractIllagerEntity":
+            case "net.minecraft.world.entity.monster.AbstractIllager":
                 buffer.writeUtf("illager");
                 break;
             default:
                 buffer.writeUtf("living");
-                break;
         }
     }
 
