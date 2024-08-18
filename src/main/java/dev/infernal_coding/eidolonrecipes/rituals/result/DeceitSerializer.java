@@ -41,7 +41,6 @@ public class DeceitSerializer implements IRitualResultSerializer {
 
     @Override
     public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
-        buffer.writeUtf(result.getVariant());
     }
 
     @Override
