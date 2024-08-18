@@ -1,6 +1,6 @@
 package dev.infernal_coding.eidolonrecipes.util;
 
-import com.ibm.icu.impl.Pair;
+import com.mojang.datafixers.util.Pair;
 import dev.infernal_coding.eidolonrecipes.registry.EidolonReflectedRegistries;
 import elucent.eidolon.codex.RitualPage;
 import elucent.eidolon.ritual.IRequirement;
@@ -12,6 +12,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Block;
+import net.minecraftforge.fml.DistExecutor;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,10 +51,8 @@ public class RitualUtil {
 
                     for (int i = 0; i < requirements.size(); i++) {
                         IRequirement rq = requirements.get(i);
-                        if (rq instanceof ItemRequirement) {
-                            ItemRequirement itemRequirement = (ItemRequirement) rq;
-                            if (itemRequirement.getMatch() instanceof ItemStack) {
-                                ItemStack item2 = (ItemStack) itemRequirement.getMatch();
+                        if (rq instanceof ItemRequirement itemRequirement) {
+                            if (itemRequirement.getMatch() instanceof ItemStack item2) {
                                 if (ItemStack.matches(item1, item2)) {
                                     requirements.remove(i);
                                     break;
@@ -68,11 +67,10 @@ public class RitualUtil {
                     for (int i = 0; i < requirements.size(); i++) {
                         IRequirement rq = requirements.get(i);
 
-                        if (rq instanceof ItemRequirement) {
-                            ItemRequirement itemRequirement = (ItemRequirement) rq;
+                        if (rq instanceof ItemRequirement itemRequirement) {
                             if (itemRequirement.getMatch() instanceof TagKey<?>) {
                                 TagKey<Item> tag2 = (TagKey<Item>) itemRequirement.getMatch();
-                                if (tag1 == tag2) {
+                                if (tag1.toString().equals(tag2.toString())) {
                                     requirements.remove(i);
                                     break;
                                 }
@@ -80,22 +78,10 @@ public class RitualUtil {
                         }
                     }
 
-                    for (int i = 0; i < requirements.size() ; i++) {
-                        IRequirement rq = requirements.get(i);
 
-                        if (rq instanceof ItemRequirement) {
-                            ItemRequirement itemRequirement = (ItemRequirement) rq;
-                            if (itemRequirement.getMatch() instanceof TagKey<?>) {
-                                TagKey<Item> tag2 = (TagKey<Item>) itemRequirement.getMatch();
-                                if (tag1 == tag2) {
-                                    requirements.remove(i);
-                                    break;
-                                }
-                            }
-                        }
-                    }
 
                    List<ItemStack> stacks = new ArrayList<>(new Ingredient.TagValue(tag1).getItems());
+
 
                     if (!stacks.isEmpty()) {
                         inputs.add(new RitualPage.RitualIngredient(stacks.get(0), true));
