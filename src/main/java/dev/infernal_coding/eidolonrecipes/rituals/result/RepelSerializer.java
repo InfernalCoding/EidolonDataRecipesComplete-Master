@@ -31,9 +31,9 @@ public class RepelSerializer extends AllureSerializer {
         return false;
     }
 
-    public boolean repelMobType(Level world, BlockPos pos, Class<PathfinderMob> mobType) {
+    public boolean repelMobType(Level world, BlockPos pos, Class<? extends PathfinderMob> mobType) {
         if (world.getGameTime() % 200 == 0) {
-            List<PathfinderMob> monsters = world.getEntitiesOfClass(mobType, new AABB(pos).inflate(96, 16, 96));
+            List<? extends PathfinderMob> monsters = world.getEntitiesOfClass(mobType, new AABB(pos).inflate(96, 16, 96));
             for (PathfinderMob creatureEntity : monsters) {
                 boolean hasGoal = creatureEntity.goalSelector.getRunningGoals().anyMatch((goal) -> goal.getGoal() instanceof GoToPositionGoal);
                 if (!hasGoal && creatureEntity.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) <= 80 * 80) {
@@ -53,9 +53,9 @@ public class RepelSerializer extends AllureSerializer {
         return true;
     }
 
-    public boolean repelMobs(Level world, BlockPos pos, EntityType<PathfinderMob> mob) {
+    public boolean repelMobs(Level world, BlockPos pos, EntityType<? extends PathfinderMob> mob) {
         if (world.getGameTime() % 200 == 0) {
-            List<PathfinderMob> monsters = world.getEntities(mob, new AABB(pos).inflate(96, 16, 96), m -> true);
+            List<? extends PathfinderMob> monsters = world.getEntities(mob, new AABB(pos).inflate(96, 16, 96), m -> true);
             for (PathfinderMob creatureEntity : monsters) {
                 boolean hasGoal = creatureEntity.goalSelector.getRunningGoals()
                         .filter((goal) -> goal.getGoal() instanceof GoToPositionGoal)
