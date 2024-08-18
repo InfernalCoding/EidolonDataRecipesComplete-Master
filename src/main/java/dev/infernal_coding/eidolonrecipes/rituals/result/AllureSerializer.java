@@ -68,8 +68,6 @@ public class AllureSerializer implements IRitualResultSerializer {
 
     @Override
     public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
-        buffer.writeUtf(result.getVariant());
-
         if (result.getToCreate() instanceof Class<?>) {
             Class<?> entityClass = (Class<?>) result.getToCreate();
             writeClassName(entityClass.getName(), buffer);
@@ -108,10 +106,10 @@ public class AllureSerializer implements IRitualResultSerializer {
         return new ItemStack(Items.FOX_SPAWN_EGG);
     }
 
-    private boolean lureMobs(Level world, BlockPos pos, EntityType<PathfinderMob> entityType) {
+    private boolean lureMobs(Level world, BlockPos pos, EntityType<? extends PathfinderMob> entityType) {
         if (world.getGameTime() % 200 == 0) {
 
-            List<PathfinderMob> entities = world.getEntities(entityType, new AABB(pos).inflate(96, 16, 96), s -> true);
+            List<? extends PathfinderMob> entities = world.getEntities(entityType, new AABB(pos).inflate(96, 16, 96), s -> true);
             for (PathfinderMob entity : entities) {
                 boolean hasGoal = entity.goalSelector.getRunningGoals()
                         .filter((goal) -> goal.getGoal() instanceof GoToPositionGoal)
@@ -129,10 +127,10 @@ public class AllureSerializer implements IRitualResultSerializer {
         return true;
     }
 
-    private boolean lureMobType(Level world, BlockPos pos, Class<PathfinderMob> entityType) {
+    private boolean lureMobType(Level world, BlockPos pos, Class<? extends PathfinderMob> entityType) {
         if (world.getGameTime() % 200 == 0) {
 
-            List<PathfinderMob> entities = world.getEntitiesOfClass(entityType, new AABB(pos).inflate(96, 16, 96));
+            List<? extends PathfinderMob> entities = world.getEntitiesOfClass(entityType, new AABB(pos).inflate(96, 16, 96));
             for (PathfinderMob entity : entities) {
                 boolean hasGoal = entity.goalSelector.getRunningGoals()
                         .filter((goal) -> goal.getGoal() instanceof GoToPositionGoal)
