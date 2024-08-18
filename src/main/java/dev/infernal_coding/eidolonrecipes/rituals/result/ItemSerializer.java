@@ -67,11 +67,8 @@ public class ItemSerializer implements IRitualResultSerializer {
 
     @Override
     public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
-        buffer.writeUtf(result.getVariant());
 
-
-        if (result.getToCreate() instanceof ItemStack) {
-            ItemStack itemStack = (ItemStack) result.getToCreate();
+        if (result.getToCreate() instanceof ItemStack itemStack) {
             buffer.writeItemStack(itemStack, false);
         }
     }
