@@ -16,6 +16,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.level.block.Block;
@@ -82,26 +83,8 @@ public class ItemUtil {
         throw new JsonParseException("Recipe Ingredient must contain either a 'tag' or an 'item'");*/
     }
 
-    public static void writeRecipeIngredient(Object ingredient, FriendlyByteBuf buffer) {
-        if (ingredient instanceof ItemStack) {
-            buffer.writeVarInt(1);
-            buffer.writeItemStack((ItemStack) ingredient, false);
-        } else if (ingredient instanceof Item item) {
-            buffer.writeVarInt(2);
-            buffer.writeResourceLocation(getItemName(item));
-        } else if (ingredient instanceof Block block) {
-            buffer.writeVarInt(3);
-            buffer.writeResourceLocation(getBlockName(block));
-        } else if (ingredient instanceof TagKey<?> tag) {
-            buffer.writeVarInt(4);
-            buffer.writeResourceLocation(tag.location());
-        } else if (ingredient instanceof Ingredient) {
-            buffer.writeVarInt(5);
-            Ingredient ing = (Ingredient) ingredient;
-            ing.toNetwork(buffer);
-        } else {
-            ModRoot.LOGGER.warn("Unknown step match for writing to buffer {}", ingredient);
-        }
+    public static void writeRecipeIngredient(Ingredient ingredient, FriendlyByteBuf buffer) {
+        ingredient.toNetwork(buffer);
     }
 
     public static Ingredient readRecipeIngredient(FriendlyByteBuf buffer) {
@@ -207,7 +190,6 @@ public class ItemUtil {
     }
 
     public static EntityType<?> getEntityFromJson(JsonElement json) {
-
         if (json instanceof JsonPrimitive) {
             JsonPrimitive jsonPrimitive = (JsonPrimitive) json;
 
