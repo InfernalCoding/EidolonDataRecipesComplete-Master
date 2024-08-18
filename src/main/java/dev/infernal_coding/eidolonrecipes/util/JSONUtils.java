@@ -3,24 +3,30 @@ package dev.infernal_coding.eidolonrecipes.util;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.mojang.realmsclient.util.JsonUtils;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.world.item.Item;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 
 
+import java.lang.reflect.Field;
+import java.util.AbstractMap;
 import java.util.Optional;
 
 public class JSONUtils {
 
     public static Optional<String> getOptionalString(JsonObject json, String name) {
-        return Optional.ofNullable(json.has(name) ? JsonUtils.getStringOr(name, json, "") : null);
+        return Optional.ofNullable(json.has(name) ? GsonHelper.getAsString(json, name, "") : null);
     }
 
     public static Optional<ResourceLocation> getOptionalResourceLocation(JsonObject json, String name) {
-        return Optional.ofNullable(json.has(name) ? new ResourceLocation(JsonUtils.getStringOr(name, json, "")) : null);
+        return Optional.ofNullable(json.has(name) ? new ResourceLocation(GsonHelper.getAsString(json, name, "")) : null);
     }
 
     public static Optional<Integer> getOptionalInt(JsonObject json, String name) {
-        return Optional.ofNullable(json.has(name) ? JsonUtils.getIntOr(name, json, 0) : null);
+        return Optional.ofNullable(json.has(name) ? GsonHelper.getAsInt(json, name, 0) : null);
     }
 
     public static Optional<Float> getOptionalFloat(JsonObject json, String name) {
