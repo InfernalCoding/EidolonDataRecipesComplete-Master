@@ -43,7 +43,7 @@ public class SummonSerializer implements IRitualResultSerializer {
             } else if (!isColorPreset) {
                 color += ColorUtil.packColor(255, 121, 94, 255);
             }
-            return new RitualManager.ResultColorPair(color, count, container, type);
+            return new RitualManager.ResultColorPair(color, 1, container, type);
         }
         return null;
     }
@@ -52,11 +52,7 @@ public class SummonSerializer implements IRitualResultSerializer {
     public RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type) {
         ResourceLocation entityName = buffer.readResourceLocation();
         EntityType<?> entityType;
-        int count = 1;
-
-        try {
-            count = buffer.readInt();
-        } catch (Exception ignored) {}
+        int count = buffer.readInt();
 
         entityType = ForgeRegistries.ENTITY_TYPES.getValue(entityName);
 
@@ -68,18 +64,16 @@ public class SummonSerializer implements IRitualResultSerializer {
             } else if (!isColorPreset) {
                 color += ColorUtil.packColor(100, 35, 80, 175);
             }
-            return new RitualManager.ResultColorPair(color, count, container, type);
+            return new RitualManager.ResultColorPair(color, 1, container, type);
         }
         return null;
     }
 
     @Override
     public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
-        buffer.writeUtf(result.getVariant());
-
-        if (result.getToCreate() instanceof EntityType<?>) {
-            EntityType<?> entityType = (EntityType<?>) result.getToCreate();
-            buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(entityType)));
+        if (result.getToCreate() instanceof EntityUtil.Container container) {
+            buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(container.entityType())));
+            buffer.writeInt(result.getCount());
         }
     }
 
@@ -103,17 +97,17 @@ public class SummonSerializer implements IRitualResultSerializer {
     @Override
     public ItemStack getIcon(RitualRecipeWrapper.Result result) {
         EntityUtil.Container container = (EntityUtil.Container) result.getToCreate();
-        Optional<Item> egg = Optional.ofNullable(ForgeSpawnEggItem.fromEntityType(container.getEntityType()));
+        Optional<Item> egg = Optional.ofNullable(ForgeSpawnEggItem.fromEntityType(container.entityType()));
         return egg.map(ItemStack::new).orElse(ItemStack.EMPTY);
     }
 
     private void createMob(RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
         EntityUtil.Container container = (EntityUtil.Container) result.getToCreate();
-        EntityType<?> entityToMake = container.getEntityType();
+        EntityType<?> entityToMake = container.entityType();
         if (!world.isClientSide) {
             Networking.sendToTracking(world, pos, new CrystallizeEffectPacket(pos));
 
-            for (int i = 0; i < result.getCount(); i++) {
+            for (int i = 0; i < container.count(); i++) {
                 Entity e = entityToMake.create(world);
                 e.setPos((double) pos.getX() + 0.5, (double) pos.getY() + 1.5, (double) pos.getZ() + 0.5);
                 world.addFreshEntity(e);
