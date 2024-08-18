@@ -2,7 +2,7 @@ package dev.infernal_coding.eidolonrecipes.registry;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.Lists;
-import com.ibm.icu.impl.Pair;
+import com.mojang.datafixers.util.Pair;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualManager;
 import dev.infernal_coding.eidolonrecipes.rituals.RitualRecipeWrapper;
 import dev.infernal_coding.eidolonrecipes.spells.SpellRecipeWrapper;
@@ -24,7 +24,6 @@ import elucent.eidolon.spell.Signs;
 import elucent.eidolon.spell.Spell;
 import elucent.eidolon.spell.Spells;
 import elucent.eidolon.util.ColorUtil;
-import net.minecraft.client.resources.language.I18n;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
@@ -72,15 +71,6 @@ public class EidolonReflectedRegistries {
     public static final BiMap<Object, Ritual> MATCHES = ObfuscationReflectionHelper.getPrivateValue(RitualRegistry.class, null, "matches");
 
     public static BiMap<Ritual, Object> sacrificeMap = MATCHES.inverse();
-
-    public static final Comparator<RitualRecipeWrapper> backwardsComparator = (r1, r2) -> {
-
-        String title1 = I18n.get(r1.title);
-        String title2 = I18n.get(r2.title);
-        return title1.compareTo(title2) * -1;
-    };
-
-
     public static void onDataPackReloaded(RecipeManager manager) {
 
         Map<ResourceLocation, SpellRecipeWrapper> spellRecipes = getRecipes(manager, RecipeTypes.SPELL.get());
@@ -290,21 +280,19 @@ public class EidolonReflectedRegistries {
                 new TitlePage("eidolon.codex.page.item_providers.1"),
                 new CraftingPage(focusOutput, focusInputs));
 
-        Set<RitualRecipeWrapper> rituals = new TreeSet<>(backwardsComparator);
-        rituals.addAll(ritualRecipes.values());
 
         List<IndexPage> ritualPages = new ArrayList<>();
         List<IndexPage.IndexEntry> pageEntries = new ArrayList<>();
         int currentEntry = 0;
 
-        for (RitualRecipeWrapper ritual : rituals) {
+        for (RitualRecipeWrapper ritual : ritualRecipes.values()) {
             currentEntry++;
             Pair<ItemStack, RitualPage.RitualIngredient[]> inputs = getRitualInputs(ritual);
             ItemStack icon = getRitualIcon(ritual);
-            ItemStack sacrifice = inputs.first;
+            ItemStack sacrifice = inputs.getFirst();
             pageEntries.add(new IndexPage.IndexEntry(new Chapter(ritual.title,
                     new TitledRitualPage2(ritual.title, ritual, sacrifice,
-                            inputs.second), new TextPage(ritual.description)), icon));
+                            inputs.getSecond()), new TextPage(ritual.description)), icon));
             if (currentEntry >= 8) {
                 ritualPages.add(new IndexPage(pageEntries.toArray(new IndexPage.IndexEntry[0])));
                 pageEntries.clear();
