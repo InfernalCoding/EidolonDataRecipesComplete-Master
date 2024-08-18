@@ -63,14 +63,10 @@ public class TransformSerializer implements IRitualResultSerializer {
     @Override
     public RitualManager.ResultColorPair getColorAndResult(FriendlyByteBuf buffer, int color, boolean isColorPreset, String type) {
         String entityOneName = buffer.readUtf();
-        int numOfEntity2 = 1;
+        int numOfEntity2 = buffer.readInt();
 
         EntityType<?> entityOne = getEntityType(entityOneName);
         EntityType<?> entityTwo = ForgeRegistries.ENTITY_TYPES.getValue(buffer.readResourceLocation());
-
-        try {
-            numOfEntity2 = buffer.readInt();
-        } catch (Exception ignored) {}
 
          if (entityOne == null && entityTwo != null) {
             RitualManager.ResultColorPair container =
@@ -90,8 +86,6 @@ public class TransformSerializer implements IRitualResultSerializer {
 
     @Override
     public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
-        buffer.writeUtf(result.getVariant());
-
         if (result.getToCreate() instanceof Pair) {
             Pair<?, EntityType<?>> entityTransformPair = (Pair<?, EntityType<?>>) result.getToCreate();
 
@@ -102,6 +96,7 @@ public class TransformSerializer implements IRitualResultSerializer {
                 EntityType<?> entity1Type = (EntityType<?>) entityTransformPair.getFirst();
                 buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(entity1Type)));
             }
+            buffer.writeInt(result.getCount());
             EntityType<?> entity2Type = entityTransformPair.getSecond();
             buffer.writeResourceLocation(Objects.requireNonNull(ForgeRegistries.ENTITY_TYPES.getKey(entity2Type)));
         }
