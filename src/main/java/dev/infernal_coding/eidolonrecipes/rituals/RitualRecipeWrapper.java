@@ -9,6 +9,8 @@ import dev.infernal_coding.eidolonrecipes.rituals.requirement.DimensionRequireme
 import dev.infernal_coding.eidolonrecipes.rituals.requirement.ExperienceRequirement;
 import dev.infernal_coding.eidolonrecipes.util.JSONUtils;
 import elucent.eidolon.ritual.*;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Session;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -25,6 +27,7 @@ import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -204,34 +207,17 @@ public class RitualRecipeWrapper extends Ritual implements Recipe<Container> {
         @Nullable
         @Override
         public RitualRecipeWrapper fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer) {
-            int color;
-            boolean isColorPreset;
             boolean usesNecro = false;
             Object brazierItemRequirement;
-            ResourceLocation symbol = SummonRitual.SYMBOL;
-            String title = "";
-            String description = "";
-
-            try {
-                symbol = buffer.readResourceLocation();
-            } catch (Exception ignored) {}
-
-            try {
-                title = buffer.readUtf();
-            } catch (Exception ignored) {}
-
-            try {
-                title = buffer.readUtf();
-            } catch (Exception ignored) {}
-
-            Pair<Integer, Boolean> colorDetails = RitualManager.getColor(buffer);
-
-            color = colorDetails.getFirst();
-            isColorPreset = colorDetails.getSecond();
+            ResourceLocation symbol = buffer.readResourceLocation();
+            String title = buffer.readUtf();
+            String description = buffer.readUtf();
+            int color = buffer.readInt();
 
             brazierItemRequirement = getBrazierRequirement(buffer);
 
             ArrayList<IRequirement> requirements = new ArrayList<>();
+            ArrayList<IRequirement> extras = new ArrayList<>();
             ArrayList<Object> necroticFocusRequirements = new ArrayList<>();
             ArrayList<Result> results = new ArrayList<>();
 
@@ -259,32 +245,50 @@ public class RitualRecipeWrapper extends Ritual implements Recipe<Container> {
 
             for (int i = 0; i < length; i++) {
                 String type = buffer.readUtf();
+                IRequirement rq;
+
+                if (type.equals("advancement")) {
+                    rq = new AdvancementRequirement(buffer.readResourceLocation());
+                } else if (type.equals("dimension")) {
+                    rq = new DimensionRequirement(buffer.readResourceLocation());
+                } else {
+                    rq = new ExperienceRequirement(buffer.readInt());
+                }
+                extras.add(rq);
+            }
+
+            length = buffer.readVarInt();
+
+            for (int i = 0; i < length; i++) {
+                String type = buffer.readUtf();
 
                 if (RESULTS.get(type) != null) {
 
-                    RitualManager.ResultColorPair resultColorPair = RESULTS.get(type).getColorAndResult(buffer, color, isColorPreset, type);
+                    RitualManager.ResultColorPair resultColorPair = RESULTS.get(type).getColorAndResult(buffer, color, true, type);
 
                     if (resultColorPair != null) {
-                        color = resultColorPair.getColor();
                         results.add(new Result(resultColorPair.getResult(), resultColorPair.getType(), resultColorPair.getCount()));
                     }
                 }
             }
-            return new RitualRecipeWrapper(symbol, title, description, color, requirements, new ArrayList<>(), necroticFocusRequirements, brazierItemRequirement, recipeId, results, usesNecro);
+            return new RitualRecipeWrapper(symbol, title, description, color, requirements, extras, necroticFocusRequirements, brazierItemRequirement, recipeId, results, usesNecro);
         }
 
         @Override
         public void toNetwork(FriendlyByteBuf buffer, RitualRecipeWrapper recipe) {
 
             buffer.writeResourceLocation(recipe.getSymbol());
-            buffer.writeInt(recipe.getColor());
             buffer.writeUtf(recipe.title);
             buffer.writeUtf(recipe.description);
+            buffer.writeInt(recipe.getColor());
+
 
             if (recipe.brazierItemRequirement instanceof TagKey<?> brazierItemTag) {
-                buffer.writeResourceLocation(new ResourceLocation(brazierItemTag.toString()));
+                buffer.writeUtf("tag");
+                buffer.writeResourceLocation(brazierItemTag.location());
             } else {
                 ItemStack itemRequired = (ItemStack) recipe.brazierItemRequirement;
+                buffer.writeUtf("item");
                 buffer.writeItemStack(itemRequired, false);
             }
 
@@ -295,7 +299,7 @@ public class RitualRecipeWrapper extends Ritual implements Recipe<Container> {
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
-            }
+            } else buffer.writeFloat(0);
 
             int length = recipe.ritualRequirements.get(0) instanceof HealthRequirement ?
                     recipe.ritualRequirements.size() - 1 : recipe.ritualRequirements.size();
@@ -305,15 +309,16 @@ public class RitualRecipeWrapper extends Ritual implements Recipe<Container> {
 
             buffer.writeVarInt(length);
 
+            ArrayList<Object> temp = new ArrayList<>(recipe.necroticFocusRequirements);
+
             while (index < recipe.ritualRequirements.size()) {
                 IRequirement requirement = recipe.ritualRequirements.get(index);
-                buffer.writeBoolean(usesNecro(recipe.necroticFocusRequirements, requirement));
 
-                if (requirement instanceof ItemRequirement) {
-                    ItemRequirement itemRequirement = (ItemRequirement) requirement;
+                if (requirement instanceof ItemRequirement itemRequirement) {
+                    buffer.writeBoolean(usesNecro(temp, itemRequirement, recipe.ritualRequirements));
                     if (itemRequirement.getMatch() instanceof TagKey<?> tag) {
                         buffer.writeUtf("tag");
-                        buffer.writeResourceLocation(new ResourceLocation(tag.toString()));
+                        buffer.writeResourceLocation(tag.location());
                     } else if (itemRequirement.getMatch() instanceof ItemStack) {
                         buffer.writeUtf("item");
                         buffer.writeItemStack((ItemStack) itemRequirement.getMatch(), false);
@@ -321,9 +326,29 @@ public class RitualRecipeWrapper extends Ritual implements Recipe<Container> {
                 }
                 index++;
             }
+            index = 0;
+
+            buffer.writeVarInt(length = recipe.extraRequirements.size());
+
+            while (index < length) {
+                IRequirement rq = recipe.extraRequirements.get(0);
+
+                if (rq instanceof AdvancementRequirement requirement) {
+                    buffer.writeUtf("advancement");
+                    buffer.writeResourceLocation(requirement.advancementName);
+                } else if (rq instanceof DimensionRequirement requirement) {
+                    buffer.writeUtf("dimension");
+                    buffer.writeResourceLocation(requirement.dimension);
+                } else if (rq instanceof ExperienceRequirement requirement) {
+                    buffer.writeUtf("experience");
+                    buffer.writeInt(requirement.experienceLevel);
+                }
+                index++;
+            }
 
             buffer.writeVarInt(recipe.results.size());
             for (Result result : recipe.results) {
+                buffer.writeUtf(result.variant);
                 RESULTS.get(result.variant).writeResult(result, buffer);
             }
         }
