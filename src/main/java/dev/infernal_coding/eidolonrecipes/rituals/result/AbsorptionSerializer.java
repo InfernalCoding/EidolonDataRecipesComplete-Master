@@ -55,9 +55,7 @@ public class AbsorptionSerializer implements IRitualResultSerializer {
     }
 
     @Override
-    public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
-        buffer.writeUtf(result.getVariant());
-    }
+    public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {}
 
     @Override
     public void startRitual(Ritual ritual, RitualRecipeWrapper.Result result, Level world, BlockPos pos) {
