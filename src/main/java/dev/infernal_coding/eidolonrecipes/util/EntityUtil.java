@@ -38,22 +38,7 @@ public class EntityUtil {
         return ForgeRegistries.ENTITY_TYPES.getValue(new ResourceLocation(entityName));
     }
 
-    public static class Container {
-        private final EntityType<?> entityType;
-        private final int count;
-
-
-        public EntityType<?> getEntityType() {
-            return entityType;
-        }
-
-        public int getCount() {
-            return count;
-        }
-        public Container(EntityType<?> entityType, int count) {
-            this.entityType = entityType;
-            this.count = count;
-        }
+    public record Container(EntityType<?> entityType, int count) {
     }
 
 
