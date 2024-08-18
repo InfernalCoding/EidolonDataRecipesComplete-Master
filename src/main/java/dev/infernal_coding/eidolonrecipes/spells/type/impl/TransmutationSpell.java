@@ -133,7 +133,7 @@ public class TransmutationSpell implements ISpell {
 
         public boolean match(List<ItemEntity> items, List<Pair<ItemEntity, Integer>> matched) {
             items = new ArrayList<>(items);
-            List<Object> matchList = new ArrayList<>(this.ingredients);
+            List<Ingredient> matchList = new ArrayList<>(this.ingredients);
             for (Object match : matchList) {
                 boolean foundMatch = false;
                 for (int j = 0; j < items.size(); j++) {
@@ -158,7 +158,7 @@ public class TransmutationSpell implements ISpell {
 
         public JsonObject toJson() {
             JsonArray ingredientArray = new JsonArray();
-            for (Object ingredient : this.ingredients) {
+            for (Ingredient ingredient : this.ingredients) {
                 ingredientArray.add(ItemUtil.serializeRecipeIngredient(ingredient));
             }
 
@@ -177,9 +177,8 @@ public class TransmutationSpell implements ISpell {
         public static TransmutationRecipe fromJson(JsonObject json) {
             List<Ingredient> ingredients = new ArrayList<>();
             JsonArray ingredientArray = JSONUtils.getJSONArray(json, "ingredients");
-            ingredientArray.forEach(ingredientJson -> {
-                ingredients.add(ItemUtil.deserializeRecipeIngredient(ingredientJson));
-            });
+            ingredientArray.forEach(ingredientJson ->
+                    ingredients.add(ItemUtil.deserializeRecipeIngredient(ingredientJson)));
 
             List<ItemStack> results = new ArrayList<>();
             JsonArray resultArray = JSONUtils.getJSONArray(json, "results");
@@ -192,7 +191,7 @@ public class TransmutationSpell implements ISpell {
 
         public void write(FriendlyByteBuf buf) {
             buf.writeVarInt(this.ingredients.size());
-            for (Object ingredient : this.ingredients) {
+            for (Ingredient ingredient : this.ingredients) {
                 ItemUtil.writeRecipeIngredient(ingredient, buf);
             }
 
