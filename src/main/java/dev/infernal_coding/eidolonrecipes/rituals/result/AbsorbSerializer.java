@@ -92,11 +92,8 @@ public class AbsorbSerializer implements IRitualResultSerializer {
         String entityName = buffer.readUtf();
         EntityType<?> entity = getEntityType(entityName);
         ItemStack resultItem = buffer.readItem();
-        int itemAddModifier = 1;
+        int itemAddModifier = buffer.readInt();
 
-        try {
-            itemAddModifier = buffer.readInt();
-        } catch (Exception ignored) {}
 
         if (entity == null && !resultItem.isEmpty()) {
             RitualManager.ResultColorPair container =
@@ -116,7 +113,6 @@ public class AbsorbSerializer implements IRitualResultSerializer {
 
     @Override
     public void writeResult(RitualRecipeWrapper.Result result, FriendlyByteBuf buffer) {
-        buffer.writeUtf(result.getVariant());
 
         if (result.getToCreate() instanceof Pair) {
             Pair<?, ItemStack> entityAbsorbPair = (Pair<?, ItemStack>) result.getToCreate();
